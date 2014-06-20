@@ -1,0 +1,12 @@
+Installation Instructions
+*************************
+
+1. After unpacking the tar.gz file, cd to the HTS voice directory.
+
+2. Run engine with appropriate options.
+
+   % hts_engine -m cmu_us_arctic_slt.htsvoice \
+     -ow output.wav input.lab
+
+   % flite_hts_engine -m cmu_us_arctic_slt.htsvoice \
+     -o output.wav input.txt

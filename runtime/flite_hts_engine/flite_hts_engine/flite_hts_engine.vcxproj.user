@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LocalDebuggerCommandArguments>-m cmu_us_arctic_slt.htsvoice -o test.wav test.txt</LocalDebuggerCommandArguments>
+    <LocalDebuggerWorkingDirectory>..\..\..\models\hts_voice_cmu_us_arctic_slt-1.05</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LocalDebuggerWorkingDirectory>..\..\..\models\hts_voice_cmu_us_arctic_slt-1.05</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+    <LocalDebuggerCommandArguments>-m cmu_us_arctic_slt.htsvoice -o test.wav test.txt</LocalDebuggerCommandArguments>
+  </PropertyGroup>
+</Project>

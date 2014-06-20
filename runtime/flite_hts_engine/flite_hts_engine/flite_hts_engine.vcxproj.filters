@@ -1,0 +1,187 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Source Files\flite">
+      <UniqueIdentifier>{2163d33e-0eb4-45bd-a3ea-fca5b911468d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\hts">
+      <UniqueIdentifier>{76d5acb4-a892-4e2c-ade4-12d8430406a5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\lang">
+      <UniqueIdentifier>{2951266b-7ddd-4011-bc43-bd7cc81e7dc5}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\hts_engine_API-1.08\lib\HTS_audio.c">
+      <Filter>Source Files\hts</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\hts_engine_API-1.08\lib\HTS_engine.c">
+      <Filter>Source Files\hts</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\hts_engine_API-1.08\lib\HTS_gstream.c">
+      <Filter>Source Files\hts</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\hts_engine_API-1.08\lib\HTS_label.c">
+      <Filter>Source Files\hts</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\hts_engine_API-1.08\lib\HTS_misc.c">
+      <Filter>Source Files\hts</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\hts_engine_API-1.08\lib\HTS_model.c">
+      <Filter>Source Files\hts</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\hts_engine_API-1.08\lib\HTS_pstream.c">
+      <Filter>Source Files\hts</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\hts_engine_API-1.08\lib\HTS_sstream.c">
+      <Filter>Source Files\hts</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\hts_engine_API-1.08\lib\HTS_vocoder.c">
+      <Filter>Source Files\hts</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\hrg\cst_utterance.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\hrg\cst_ffeature.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\hrg\cst_item.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\hrg\cst_relation.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\lexicon\cst_lexicon.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\lexicon\cst_lts.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\regex\cst_regex.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\regex\regexp.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\stats\cst_cart.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\synth\cst_ffeatures.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\synth\cst_phoneset.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\synth\cst_synth.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\synth\cst_utt_utils.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\synth\cst_voice.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\synth\flite.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\utils\cst_alloc.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\utils\cst_error.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\utils\cst_features.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\utils\cst_string.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\utils\cst_tokenstream.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\utils\cst_val.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\utils\cst_val_const.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\src\utils\cst_val_user.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\lang\cmu_us_kal\cmu_us_kal.c">
+      <Filter>Source Files\lang</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\lang\cmulex\cmu_lex.c">
+      <Filter>Source Files\lang</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\lang\cmulex\cmu_lex_data.c">
+      <Filter>Source Files\lang</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\lang\cmulex\cmu_lex_entries.c">
+      <Filter>Source Files\lang</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\lang\cmulex\cmu_lts_model.c">
+      <Filter>Source Files\lang</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\lang\cmulex\cmu_lts_rules.c">
+      <Filter>Source Files\lang</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\lang\cmulex\cmu_postlex.c">
+      <Filter>Source Files\lang</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\lang\usenglish\us_aswd.c">
+      <Filter>Source Files\lang</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\lang\usenglish\us_expand.c">
+      <Filter>Source Files\lang</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\lang\usenglish\us_ffeatures.c">
+      <Filter>Source Files\lang</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\lang\usenglish\us_gpos.c">
+      <Filter>Source Files\lang</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\lang\usenglish\us_int_accent_cart.c">
+      <Filter>Source Files\lang</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\lang\usenglish\us_int_tone_cart.c">
+      <Filter>Source Files\lang</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\lang\usenglish\us_nums_cart.c">
+      <Filter>Source Files\lang</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\lang\usenglish\us_phoneset.c">
+      <Filter>Source Files\lang</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\lang\usenglish\us_phrasing_cart.c">
+      <Filter>Source Files\lang</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\lang\usenglish\us_pos_cart.c">
+      <Filter>Source Files\lang</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\lang\usenglish\us_text.c">
+      <Filter>Source Files\lang</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\flite\lang\usenglish\usenglish.c">
+      <Filter>Source Files\lang</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\bin\flite_hts_engine.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\flite+hts_engine-1.05\lib\flite_hts_engine_api.c">
+      <Filter>Source Files\flite</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>
