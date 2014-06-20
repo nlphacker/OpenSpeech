@@ -1,0 +1,43 @@
+Here keeps  the short instruction on how to build this stuff. 
+
+**How To Build**
+1. runtime
+   build with vs2013
+
+2. tools
+    so far build on Ubuntu 14
+
+    speech_tools
+    festival
+        build the two in order 
+
+    SPTK
+        chmod 755 ./configure 
+        ./configure
+        sudo make install
+
+    HTK (HTS 2.3 Alpha Patch applied)
+        chmod 755 ./configure 
+        ./configure
+        sudo make install
+
+    Dependencies:
+        sudo apt-get install buildessentials 
+        sudo apt-get install libx11-dev
+        sudo apt-get install libncurses-dev
+        Sudo apt-get install csh 
+
+
+3. voices
+        HTS-demo_CMU-ARCTIC-SLT
+            ./configure
+            make
+
+**Links**
+   HTK-3.4.1:  http://htk.eng.cam.ac.uk/download.shtml
+   HDecode-3.4.1:  http://htk.eng.cam.ac.uk/extensions/index.shtml
+   Festival: http://www.cstr.ed.ac.uk/projects/festival/
+   SPTK: http://sp-tk.sourceforge.net/
+   HTS: http://hts.sp.nitech.ac.jp/
+        http://hts.sp.nitech.ac.jp/archives/2.3alpha/
+   hts_engine API: http://hts-engine.sourceforge.net/
