@@ -42,10 +42,11 @@
  /* it is fairly simple.                                                 */
  /*                                                                      */
  /************************************************************************/
-
 #include <cstdio>
 #include "EST_System.h"
 #include "EST_Pathname.h"
+#include <atlbase.h>
+#include <atlconv.h>
 
 void EST_Pathname::setup(void)
 {
@@ -120,11 +121,11 @@ EST_TList<EST_String> EST_Pathname::entries(int check_for_directories) const
   EST_TList<EST_String> list;
   EST_Pathname pattern(this->as_directory() + EST_Pathname("*"));
 
-  handle = FindFirstFile(pattern, &find_data);
+  handle = FindFirstFile(CA2W((LPCSTR)pattern), &find_data);
   if (handle !=  INVALID_HANDLE_VALUE)
     while (1==1)
       {
-	EST_Pathname name(find_data.cFileName);
+	EST_Pathname name(CW2A(find_data.cFileName));
 
 	if (check_for_directories 
 	    && (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))

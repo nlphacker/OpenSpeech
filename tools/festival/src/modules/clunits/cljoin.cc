@@ -39,7 +39,7 @@
 /*************************************************************************/
 
 #include "EST_error.h"
-#include "us_synthesis.h"
+#include "..\UniSyn\us_synthesis.h"
 #include "festival.h"
 
 #if 0

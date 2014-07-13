@@ -109,7 +109,7 @@ int play_win32audio_wave(EST_Wave &inwave, EST_Option &al)
     hdr->data_size = hdr->n_channels * 2 * inwave.num_samples();
   
     memcpy(data, inwave.values().memory(), hdr->n_channels * 2 * inwave.num_samples());
-    PlaySound( buffer,
+    PlaySound((LPCWSTR)buffer,
                NULL,
                SND_MEMORY);
     delete [] buffer;

@@ -1,0 +1,424 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="src\arch">
+      <UniqueIdentifier>{3ff44c05-4f94-4d7b-be8a-4cc1364ca69b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\base">
+      <UniqueIdentifier>{6d652826-5282-43dc-8f1d-868616662f95}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\clunits">
+      <UniqueIdentifier>{4d5c3328-1253-46b9-814e-5d38d1a4c44c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\clustergen">
+      <UniqueIdentifier>{f2c8f1ef-bef4-47eb-922e-77d7f0aa752d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\diphone">
+      <UniqueIdentifier>{c9492a6b-d045-4998-8716-5b7b4a0fdeab}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\donovan">
+      <UniqueIdentifier>{202818d4-6eda-484d-9a1a-cf93da242376}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Duration">
+      <UniqueIdentifier>{635c191e-9b45-4196-8aa5-6ccbeeb97da2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\hts_engine">
+      <UniqueIdentifier>{c5e1ee37-e0fc-4156-be06-7cb80c294b4e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Intonation">
+      <UniqueIdentifier>{ace26d3d-28a0-440c-a71a-86f9a37933f9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Lexicon">
+      <UniqueIdentifier>{ef546de7-6da0-416f-af11-6fa5730f6d35}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\MultiSyn">
+      <UniqueIdentifier>{582caa7b-1276-435b-8b35-bfa2d417fb75}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\parser">
+      <UniqueIdentifier>{a2160eca-cf91-49b6-adf9-1f38aa47f464}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\UniSyn">
+      <UniqueIdentifier>{a1062164-aa65-41e9-9e20-368f3a8375ab}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\UniSyn_diphone">
+      <UniqueIdentifier>{b91e499d-76f3-433f-951b-093dd9d0d38a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\UniSyn_phonology">
+      <UniqueIdentifier>{4f6aa65e-46a5-4112-9414-8bbf6f0cf654}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\main">
+      <UniqueIdentifier>{d27c9f74-e11d-4981-b9f0-618601cf752d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\Text">
+      <UniqueIdentifier>{46966c14-7e67-4072-ab70-cc358df56e69}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\festival\src\arch\festival\client.cc">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\arch\festival\features.cc">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\arch\festival\festival.cc">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\arch\festival\linreg.cc">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\arch\festival\ModuleDescription.cc">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\arch\festival\ngram.cc">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\arch\festival\Phone.cc">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\arch\festival\server.cc">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\arch\festival\tcl.cc">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\arch\festival\utterance.cc">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\arch\festival\viterbi.cc">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\arch\festival\wagon_interp.cc">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\arch\festival\wave.cc">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\arch\festival\web.cc">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\arch\festival\wfst.cc">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\base\ff.cc">
+      <Filter>src\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\base\module_support.cc">
+      <Filter>src\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\base\modules.cc">
+      <Filter>src\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\base\parameters.cc">
+      <Filter>src\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\base\phrasify.cc">
+      <Filter>src\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\base\phrinfo.cc">
+      <Filter>src\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\base\pos.cc">
+      <Filter>src\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\base\postlex.cc">
+      <Filter>src\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\base\word.cc">
+      <Filter>src\base</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\clunits\acost.cc">
+      <Filter>src\clunits</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\clunits\cldb.cc">
+      <Filter>src\clunits</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\clunits\cljoin.cc">
+      <Filter>src\clunits</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\clunits\clunits.cc">
+      <Filter>src\clunits</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\clustergen\clustergen.cc">
+      <Filter>src\clustergen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\clustergen\me_mlsa.cc">
+      <Filter>src\clustergen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\clustergen\mlsa_resynthesis.cc">
+      <Filter>src\clustergen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\clustergen\simple_mlpg.cc">
+      <Filter>src\clustergen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\clustergen\vc.cc">
+      <Filter>src\clustergen</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\diphone\di_io.cc">
+      <Filter>src\diphone</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\diphone\di_pitch.cc">
+      <Filter>src\diphone</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\diphone\di_psola.cc">
+      <Filter>src\diphone</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\diphone\di_reslpc.cc">
+      <Filter>src\diphone</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\diphone\di_select.cc">
+      <Filter>src\diphone</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\diphone\diphone.cc">
+      <Filter>src\diphone</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\diphone\oc.cc">
+      <Filter>src\diphone</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\donovan\coeffs.c">
+      <Filter>src\donovan</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\donovan\donovan.cc">
+      <Filter>src\donovan</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\donovan\durations.c">
+      <Filter>src\donovan</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\donovan\excitation.c">
+      <Filter>src\donovan</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\donovan\load_diphs.c">
+      <Filter>src\donovan</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\donovan\makewav.c">
+      <Filter>src\donovan</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\donovan\pitch.c">
+      <Filter>src\donovan</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\Duration\dur_aux.cc">
+      <Filter>src\Duration</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\Duration\duration.cc">
+      <Filter>src\Duration</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\Duration\Klatt.cc">
+      <Filter>src\Duration</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\hts_engine\fest2hts_engine.cc">
+      <Filter>src\hts_engine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\hts_engine\HTS_audio.c">
+      <Filter>src\hts_engine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\hts_engine\HTS_engine.c">
+      <Filter>src\hts_engine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\hts_engine\HTS_gstream.c">
+      <Filter>src\hts_engine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\hts_engine\HTS_label.c">
+      <Filter>src\hts_engine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\hts_engine\HTS_misc.c">
+      <Filter>src\hts_engine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\hts_engine\HTS_model.c">
+      <Filter>src\hts_engine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\hts_engine\HTS_pstream.c">
+      <Filter>src\hts_engine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\hts_engine\HTS_sstream.c">
+      <Filter>src\hts_engine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\hts_engine\HTS_vocoder.c">
+      <Filter>src\hts_engine</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\Intonation\duffint.cc">
+      <Filter>src\Intonation</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\Intonation\gen_int.cc">
+      <Filter>src\Intonation</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\Intonation\int_aux.cc">
+      <Filter>src\Intonation</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\Intonation\int_tree.cc">
+      <Filter>src\Intonation</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\Intonation\simple.cc">
+      <Filter>src\Intonation</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\Lexicon\complex.cc">
+      <Filter>src\Lexicon</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\Lexicon\lex_aux.cc">
+      <Filter>src\Lexicon</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\Lexicon\lex_ff.cc">
+      <Filter>src\Lexicon</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\Lexicon\lexicon.cc">
+      <Filter>src\Lexicon</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\Lexicon\lts.cc">
+      <Filter>src\Lexicon</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\Lexicon\lts_rules.cc">
+      <Filter>src\Lexicon</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\DiphoneBackoff.cc">
+      <Filter>src\MultiSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\DiphoneUnitVoice.cc">
+      <Filter>src\MultiSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\DiphoneVoiceModule.cc">
+      <Filter>src\MultiSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\EST_DiphoneCoverage.cc">
+      <Filter>src\MultiSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\EST_FlatTargetCost.cc">
+      <Filter>src\MultiSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\EST_JoinCost.cc">
+      <Filter>src\MultiSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\EST_JoinCostCache.cc">
+      <Filter>src\MultiSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\EST_TargetCost.cc">
+      <Filter>src\MultiSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\TargetCostRescoring.cc">
+      <Filter>src\MultiSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\UnitSelection.cc">
+      <Filter>src\MultiSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\VoiceBase.cc">
+      <Filter>src\MultiSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\VoiceModuleBase.cc">
+      <Filter>src\MultiSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\inst_tmpl\hash_itemp_tcdatap_t.cc">
+      <Filter>src\MultiSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\inst_tmpl\hash_s_itemlistp_t.cc">
+      <Filter>src\MultiSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\inst_tmpl\list_itemp_t.cc">
+      <Filter>src\MultiSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\inst_tmpl\list_scorepair_t.cc">
+      <Filter>src\MultiSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\inst_tmpl\list_strlist_t.cc">
+      <Filter>src\MultiSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\inst_tmpl\list_uttp_t.cc">
+      <Filter>src\MultiSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\inst_tmpl\list_voicemodulep_t.cc">
+      <Filter>src\MultiSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\inst_tmpl\vector_jccp_t.cc">
+      <Filter>src\MultiSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\parser\pparser.cc">
+      <Filter>src\parser</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\UniSyn\ps_synthesis.cc">
+      <Filter>src\UniSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\UniSyn\UniSyn.cc">
+      <Filter>src\UniSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\UniSyn\us_features.cc">
+      <Filter>src\UniSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\UniSyn\us_mapping.cc">
+      <Filter>src\UniSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\UniSyn\us_prosody.cc">
+      <Filter>src\UniSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\UniSyn\us_unit.cc">
+      <Filter>src\UniSyn</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\UniSyn_diphone\UniSyn_diphone.cc">
+      <Filter>src\UniSyn_diphone</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\UniSyn_diphone\us_diphone_index.cc">
+      <Filter>src\UniSyn_diphone</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\UniSyn_diphone\us_diphone_unit.cc">
+      <Filter>src\UniSyn_diphone</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\UniSyn_phonology\mettree.cc">
+      <Filter>src\UniSyn_phonology</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\UniSyn_phonology\subword.cc">
+      <Filter>src\UniSyn_phonology</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\UniSyn_phonology\syllabify.cc">
+      <Filter>src\UniSyn_phonology</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\UniSyn_phonology\UniSyn_build.cc">
+      <Filter>src\UniSyn_phonology</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\UniSyn_phonology\UniSyn_phonology.cc">
+      <Filter>src\UniSyn_phonology</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\UniSyn_phonology\unisyn_tilt.cc">
+      <Filter>src\UniSyn_phonology</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\UniSyn_phonology\us_aux.cc">
+      <Filter>src\UniSyn_phonology</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\main\festival_main.cc">
+      <Filter>src\main</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\Text\text.cc">
+      <Filter>src\Text</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\Text\text_aux.cc">
+      <Filter>src\Text</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\Text\text_modes.cc">
+      <Filter>src\Text</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\Text\tok_ext.cc">
+      <Filter>src\Text</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\Text\token.cc">
+      <Filter>src\Text</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\Text\token_pos.cc">
+      <Filter>src\Text</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\modules\Text\xxml.cc">
+      <Filter>src\Text</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\arch\festival\audspio.cc">
+      <Filter>src\arch</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\main\initmodules.cc">
+      <Filter>src\main</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

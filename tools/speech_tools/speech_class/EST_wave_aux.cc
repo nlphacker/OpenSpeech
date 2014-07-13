@@ -36,7 +36,6 @@
 /*             more EST_Wave class methods                               */
 /*                                                                       */
 /*=======================================================================*/
-
 #include <cstring>
 #include "EST_unix.h"
 #include <cstdlib>

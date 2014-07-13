@@ -40,7 +40,6 @@
 /*  most people believe this a c library function.                       */
 /*                                                                       */
 /*=======================================================================*/
-
 #include <cstdlib>
 #include <cstdio>
 #include "EST_cutils.h"

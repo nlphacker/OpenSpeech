@@ -36,7 +36,6 @@
  /* Code to talk to a running server.                                     */
  /*                                                                       */
  /*************************************************************************/
-
 #include "EST_system.h"
 #include "EST_socket.h"
 #include <csignal>

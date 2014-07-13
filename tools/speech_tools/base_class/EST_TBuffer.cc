@@ -38,7 +38,6 @@
  /* of writing this code all over the place.                              */
  /*                                                                       */
  /*************************************************************************/
-
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>

@@ -38,7 +38,6 @@
  /* sources and sinks.                                                   */
  /*                                                                      */
  /************************************************************************/
-
 #include <cstdlib>
 #include <cstdio>
 #include <fcntl.h>

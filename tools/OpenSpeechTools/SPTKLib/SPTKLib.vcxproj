@@ -1,0 +1,170 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{DA0FF638-48BD-411B-B281-E96E7B3AA629}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>SPTKLib</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\SPTK-3.7\include</AdditionalIncludeDirectories>
+      <AdditionalOptions>/D "HAVE_MEMSET" /D "HAVE_STRING_H" /D "_CRT_SECURE_NO_WARNINGS"  /D "FORMAT=\"double\"" %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\SPTK-3.7\include</AdditionalIncludeDirectories>
+      <AdditionalOptions>/D "HAVE_MEMSET" /D "HAVE_STRING_H" /D "_CRT_SECURE_NO_WARNINGS"  /D "FORMAT=\"double\"" %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <Text Include="ReadMe.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\SPTK-3.7\bin\acep\_acep.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\acorr\_acorr.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\agcep\_agcep.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\amcep\_amcep.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\average\_average.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\b2mc\_b2mc.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\c2acr\_c2acr.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\c2ir\_c2ir.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\c2sp\_c2sp.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\clip\_clip.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\dct\_dct.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\df2\_df2.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\dfs\_dfs.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\fft2\_fft2.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\fftcep\_fftcep.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\fftr2\_fftr2.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\fftr\_fftr.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\fft\_fft.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\freqt\_freqt.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\gc2gc\_gc2gc.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\gcep\_gcep.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\glsadf\_glsadf.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\gmm\_gmm.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\gnorm\_gnorm.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\grpdelay\_grpdelay.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\histogram\_histogram.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\ifft2\_ifft2.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\ifftr\_ifftr.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\ifft\_ifft.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\ignorm\_ignorm.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\imsvq\_imsvq.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\ivq\_ivq.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\lbg\_lbg.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\levdur\_levdur.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\lmadf\_lmadf.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\lpc2c\_lpc2c.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\lpc2lsp\_lpc2lsp.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\lpc2par\_lpc2par.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\lpc\_lpc.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\lsp2lpc\_lsp2lpc.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\lsp2sp\_lsp2sp.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\lspcheck\_lspcheck.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\lspdf\_lspdf.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\ltcdf\_ltcdf.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\mc2b\_mc2b.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\mcep\_mcep.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\mfcc\_mfcc.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\mgc2mgc\_mgc2mgc.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\mgc2sp\_mgc2sp.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\mgcep\_mgcep.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\mglsadf\_mglsadf.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\mlpg\_mlpg.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\mlsadf\_mlsadf.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\msvq\_msvq.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\norm0\_norm0.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\nrand\_nrand.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\par2lpc\_par2lpc.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\phase\_phase.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\poledf\_poledf.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\reverse\_reverse.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\rmse\_rmse.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\root_pol\_root_pol.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\smcep\_smcep.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\transpose\_transpose.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\uels\_uels.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\ulaw\_ulaw.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\vc\_vc.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\vq\_vq.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\window\_window.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\zcross\_zcross.c" />
+    <ClCompile Include="..\..\SPTK-3.7\bin\zerodf\_zerodf.c" />
+    <ClCompile Include="..\..\SPTK-3.7\lib\agexp.c" />
+    <ClCompile Include="..\..\SPTK-3.7\lib\cholesky.c" />
+    <ClCompile Include="..\..\SPTK-3.7\lib\fileio.c" />
+    <ClCompile Include="..\..\SPTK-3.7\lib\fillz.c" />
+    <ClCompile Include="..\..\SPTK-3.7\lib\getfp.c" />
+    <ClCompile Include="..\..\SPTK-3.7\lib\getmem.c" />
+    <ClCompile Include="..\..\SPTK-3.7\lib\gexp.c" />
+    <ClCompile Include="..\..\SPTK-3.7\lib\glog.c" />
+    <ClCompile Include="..\..\SPTK-3.7\lib\invert.c" />
+    <ClCompile Include="..\..\SPTK-3.7\lib\matrix.c" />
+    <ClCompile Include="..\..\SPTK-3.7\lib\movem.c" />
+    <ClCompile Include="..\..\SPTK-3.7\lib\mseq.c" />
+    <ClCompile Include="..\..\SPTK-3.7\lib\theq.c" />
+    <ClCompile Include="..\..\SPTK-3.7\lib\toeplitz.c" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

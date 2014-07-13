@@ -62,6 +62,7 @@ extern char *repl_prompt;
 /* command lin editing                                                 */
 int el_no_echo;
 int editline_histsize;
+char *editline_history_file = ".edit.history";
 
 int siod_el_getc(FILE *f)
 {

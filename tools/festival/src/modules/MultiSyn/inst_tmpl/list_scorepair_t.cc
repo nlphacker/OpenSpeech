@@ -38,7 +38,7 @@
 /* Template instantiations for target cost rescoring internal work class */
 /*************************************************************************/
 
-#include "TargetCostRescoring.h"
+#include "..\TargetCostRescoring.h"
 
 // manual template instantiation hassle
 Declare_TList(ScorePair)

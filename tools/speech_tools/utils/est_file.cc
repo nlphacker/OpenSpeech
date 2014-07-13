@@ -36,7 +36,6 @@
 /*                File functions for EST type files                      */
 /*                                                                       */
 /*=======================================================================*/
-
 #include "EST_FileType.h"
 #include "EST_TNamedEnum.h"
 #include "EST_Token.h"

@@ -41,7 +41,7 @@
 
 #include "EST_THash.h"
 #include "EST_String.h"
-#include "EST_FlatTargetCost.h" // for TCData
+#include "..\EST_FlatTargetCost.h" // for TCData
 
 //Declare_TStringHash_T(ItemList*,ItemListP)
 //above macro has been disabled, so do it manually.

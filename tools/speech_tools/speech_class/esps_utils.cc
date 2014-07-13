@@ -55,7 +55,6 @@
 /*  I should add, this wasn't easy to write, though I'm much better at   */
 /*  octal and hex dumps now.                                             */
 /*=======================================================================*/
-
 #include <cstdio>
 #include <cstdlib>
 #include "EST_unix.h"

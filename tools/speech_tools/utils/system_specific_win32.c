@@ -39,7 +39,7 @@
 
 int unix_access(const char *file, int mode)
 {
-  DWORD flags = GetFileAttributes(file);
+  DWORD flags = GetFileAttributesA(file);
 
   if (flags == 0xffffffff)
   {
@@ -89,7 +89,7 @@ char *unix_getcwd(char *buffer, int maxlength)
     maxlength=1023;
     }
 
-  if (GetCurrentDirectory(maxlength, buffer) >=0)
+  if (GetCurrentDirectoryA(maxlength, buffer) >=0)
     return buffer;
   return NULL;
 }

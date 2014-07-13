@@ -105,7 +105,7 @@ extern "C" {
 #endif
 
 #define getcwd(P, L) unix_getcwd((P), (L))
-#define chdir(D) SetCurrentDirectory(D)
+#define chdir(D) SetCurrentDirectoryA(D)
 
 #if !defined(memcpy)
 #   define memcpy(DST, SRC, N) CopyMemory((DST), (SRC), (N))

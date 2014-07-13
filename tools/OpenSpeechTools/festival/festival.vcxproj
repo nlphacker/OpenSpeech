@@ -1,0 +1,212 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{FE85556E-87E8-4289-BA6A-DC20B54363E7}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>festival</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions>/DSYSTEM_IS_WIN32  /DSUPPORT_WIN32AUDIO  /DINSTANTIATE_TEMPLATES  /DFTLIBDIR="\"../../festival/lib\"" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>..\..\speech_tools\include;..\..\festival\src\include</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>Ws2_32.lib;winmm.lib;speechtools.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(SolutionDir)$(Configuration)\</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>..\..\speech_tools\include;..\..\festival\src\include</AdditionalIncludeDirectories>
+      <AdditionalOptions>/DSYSTEM_IS_WIN32  /DSUPPORT_WIN32AUDIO  /DINSTANTIATE_TEMPLATES  /DFTLIBDIR="\"../../festival/lib\"" %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>$(SolutionDir)$(Configuration)\</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Ws2_32.lib;winmm.lib;speechtools.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\festival\src\arch\festival\audspio.cc">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">/DNO_SPOOLER %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">/DNO_SPOOLER %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <ClCompile Include="..\..\festival\src\arch\festival\client.cc" />
+    <ClCompile Include="..\..\festival\src\arch\festival\features.cc" />
+    <ClCompile Include="..\..\festival\src\arch\festival\festival.cc" />
+    <ClCompile Include="..\..\festival\src\arch\festival\linreg.cc" />
+    <ClCompile Include="..\..\festival\src\arch\festival\ModuleDescription.cc" />
+    <ClCompile Include="..\..\festival\src\arch\festival\ngram.cc" />
+    <ClCompile Include="..\..\festival\src\arch\festival\Phone.cc" />
+    <ClCompile Include="..\..\festival\src\arch\festival\server.cc" />
+    <ClCompile Include="..\..\festival\src\arch\festival\tcl.cc" />
+    <ClCompile Include="..\..\festival\src\arch\festival\utterance.cc" />
+    <ClCompile Include="..\..\festival\src\arch\festival\viterbi.cc" />
+    <ClCompile Include="..\..\festival\src\arch\festival\wagon_interp.cc" />
+    <ClCompile Include="..\..\festival\src\arch\festival\wave.cc" />
+    <ClCompile Include="..\..\festival\src\arch\festival\web.cc" />
+    <ClCompile Include="..\..\festival\src\arch\festival\wfst.cc" />
+    <ClCompile Include="..\..\festival\src\main\festival_main.cc" />
+    <ClCompile Include="..\..\festival\src\main\initmodules.cc" />
+    <ClCompile Include="..\..\festival\src\modules\base\ff.cc" />
+    <ClCompile Include="..\..\festival\src\modules\base\modules.cc" />
+    <ClCompile Include="..\..\festival\src\modules\base\module_support.cc" />
+    <ClCompile Include="..\..\festival\src\modules\base\parameters.cc" />
+    <ClCompile Include="..\..\festival\src\modules\base\phrasify.cc" />
+    <ClCompile Include="..\..\festival\src\modules\base\phrinfo.cc" />
+    <ClCompile Include="..\..\festival\src\modules\base\pos.cc" />
+    <ClCompile Include="..\..\festival\src\modules\base\postlex.cc" />
+    <ClCompile Include="..\..\festival\src\modules\base\word.cc" />
+    <ClCompile Include="..\..\festival\src\modules\clunits\acost.cc" />
+    <ClCompile Include="..\..\festival\src\modules\clunits\cldb.cc" />
+    <ClCompile Include="..\..\festival\src\modules\clunits\cljoin.cc" />
+    <ClCompile Include="..\..\festival\src\modules\clunits\clunits.cc" />
+    <ClCompile Include="..\..\festival\src\modules\clustergen\clustergen.cc" />
+    <ClCompile Include="..\..\festival\src\modules\clustergen\me_mlsa.cc" />
+    <ClCompile Include="..\..\festival\src\modules\clustergen\mlsa_resynthesis.cc" />
+    <ClCompile Include="..\..\festival\src\modules\clustergen\simple_mlpg.cc" />
+    <ClCompile Include="..\..\festival\src\modules\clustergen\vc.cc" />
+    <ClCompile Include="..\..\festival\src\modules\diphone\diphone.cc" />
+    <ClCompile Include="..\..\festival\src\modules\diphone\di_io.cc" />
+    <ClCompile Include="..\..\festival\src\modules\diphone\di_pitch.cc" />
+    <ClCompile Include="..\..\festival\src\modules\diphone\di_psola.cc" />
+    <ClCompile Include="..\..\festival\src\modules\diphone\di_reslpc.cc" />
+    <ClCompile Include="..\..\festival\src\modules\diphone\di_select.cc" />
+    <ClCompile Include="..\..\festival\src\modules\diphone\oc.cc" />
+    <ClCompile Include="..\..\festival\src\modules\donovan\coeffs.c" />
+    <ClCompile Include="..\..\festival\src\modules\donovan\donovan.cc" />
+    <ClCompile Include="..\..\festival\src\modules\donovan\durations.c" />
+    <ClCompile Include="..\..\festival\src\modules\donovan\excitation.c" />
+    <ClCompile Include="..\..\festival\src\modules\donovan\load_diphs.c" />
+    <ClCompile Include="..\..\festival\src\modules\donovan\makewav.c" />
+    <ClCompile Include="..\..\festival\src\modules\donovan\pitch.c" />
+    <ClCompile Include="..\..\festival\src\modules\Duration\duration.cc" />
+    <ClCompile Include="..\..\festival\src\modules\Duration\dur_aux.cc" />
+    <ClCompile Include="..\..\festival\src\modules\Duration\Klatt.cc" />
+    <ClCompile Include="..\..\festival\src\modules\hts_engine\fest2hts_engine.cc" />
+    <ClCompile Include="..\..\festival\src\modules\hts_engine\HTS_audio.c" />
+    <ClCompile Include="..\..\festival\src\modules\hts_engine\HTS_engine.c" />
+    <ClCompile Include="..\..\festival\src\modules\hts_engine\HTS_gstream.c" />
+    <ClCompile Include="..\..\festival\src\modules\hts_engine\HTS_label.c" />
+    <ClCompile Include="..\..\festival\src\modules\hts_engine\HTS_misc.c" />
+    <ClCompile Include="..\..\festival\src\modules\hts_engine\HTS_model.c" />
+    <ClCompile Include="..\..\festival\src\modules\hts_engine\HTS_pstream.c" />
+    <ClCompile Include="..\..\festival\src\modules\hts_engine\HTS_sstream.c" />
+    <ClCompile Include="..\..\festival\src\modules\hts_engine\HTS_vocoder.c" />
+    <ClCompile Include="..\..\festival\src\modules\Intonation\duffint.cc" />
+    <ClCompile Include="..\..\festival\src\modules\Intonation\gen_int.cc" />
+    <ClCompile Include="..\..\festival\src\modules\Intonation\int_aux.cc" />
+    <ClCompile Include="..\..\festival\src\modules\Intonation\int_tree.cc" />
+    <ClCompile Include="..\..\festival\src\modules\Intonation\simple.cc" />
+    <ClCompile Include="..\..\festival\src\modules\Lexicon\complex.cc" />
+    <ClCompile Include="..\..\festival\src\modules\Lexicon\lexicon.cc" />
+    <ClCompile Include="..\..\festival\src\modules\Lexicon\lex_aux.cc" />
+    <ClCompile Include="..\..\festival\src\modules\Lexicon\lex_ff.cc" />
+    <ClCompile Include="..\..\festival\src\modules\Lexicon\lts.cc" />
+    <ClCompile Include="..\..\festival\src\modules\Lexicon\lts_rules.cc" />
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\DiphoneBackoff.cc" />
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\DiphoneUnitVoice.cc" />
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\DiphoneVoiceModule.cc" />
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\EST_DiphoneCoverage.cc" />
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\EST_FlatTargetCost.cc" />
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\EST_JoinCost.cc" />
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\EST_JoinCostCache.cc" />
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\EST_TargetCost.cc" />
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\inst_tmpl\hash_itemp_tcdatap_t.cc" />
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\inst_tmpl\hash_s_itemlistp_t.cc" />
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\inst_tmpl\list_itemp_t.cc" />
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\inst_tmpl\list_scorepair_t.cc" />
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\inst_tmpl\list_strlist_t.cc" />
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\inst_tmpl\list_uttp_t.cc" />
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\inst_tmpl\list_voicemodulep_t.cc" />
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\inst_tmpl\vector_jccp_t.cc" />
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\TargetCostRescoring.cc" />
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\UnitSelection.cc" />
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\VoiceBase.cc" />
+    <ClCompile Include="..\..\festival\src\modules\MultiSyn\VoiceModuleBase.cc" />
+    <ClCompile Include="..\..\festival\src\modules\parser\pparser.cc" />
+    <ClCompile Include="..\..\festival\src\modules\Text\text.cc" />
+    <ClCompile Include="..\..\festival\src\modules\Text\text_aux.cc" />
+    <ClCompile Include="..\..\festival\src\modules\Text\text_modes.cc" />
+    <ClCompile Include="..\..\festival\src\modules\Text\token.cc" />
+    <ClCompile Include="..\..\festival\src\modules\Text\token_pos.cc" />
+    <ClCompile Include="..\..\festival\src\modules\Text\tok_ext.cc" />
+    <ClCompile Include="..\..\festival\src\modules\Text\xxml.cc" />
+    <ClCompile Include="..\..\festival\src\modules\UniSyn\ps_synthesis.cc" />
+    <ClCompile Include="..\..\festival\src\modules\UniSyn\UniSyn.cc" />
+    <ClCompile Include="..\..\festival\src\modules\UniSyn\us_features.cc" />
+    <ClCompile Include="..\..\festival\src\modules\UniSyn\us_mapping.cc" />
+    <ClCompile Include="..\..\festival\src\modules\UniSyn\us_prosody.cc" />
+    <ClCompile Include="..\..\festival\src\modules\UniSyn\us_unit.cc" />
+    <ClCompile Include="..\..\festival\src\modules\UniSyn_diphone\UniSyn_diphone.cc" />
+    <ClCompile Include="..\..\festival\src\modules\UniSyn_diphone\us_diphone_index.cc" />
+    <ClCompile Include="..\..\festival\src\modules\UniSyn_diphone\us_diphone_unit.cc" />
+    <ClCompile Include="..\..\festival\src\modules\UniSyn_phonology\mettree.cc" />
+    <ClCompile Include="..\..\festival\src\modules\UniSyn_phonology\subword.cc" />
+    <ClCompile Include="..\..\festival\src\modules\UniSyn_phonology\syllabify.cc" />
+    <ClCompile Include="..\..\festival\src\modules\UniSyn_phonology\UniSyn_build.cc" />
+    <ClCompile Include="..\..\festival\src\modules\UniSyn_phonology\UniSyn_phonology.cc" />
+    <ClCompile Include="..\..\festival\src\modules\UniSyn_phonology\unisyn_tilt.cc" />
+    <ClCompile Include="..\..\festival\src\modules\UniSyn_phonology\us_aux.cc" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

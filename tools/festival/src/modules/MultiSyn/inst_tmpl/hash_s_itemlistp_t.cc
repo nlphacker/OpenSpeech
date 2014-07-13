@@ -42,7 +42,7 @@
 #include "EST_THash.h"
 #include "EST_String.h"
 #include "EST_Val.h"
-#include "DiphoneUnitVoice.h" //for ItemList
+#include "..\DiphoneUnitVoice.h" //for ItemList
 
 //Declare_TStringHash_T(ItemList*,ItemListP)
 //above macro has been disabled, so do it manually.

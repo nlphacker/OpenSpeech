@@ -42,6 +42,9 @@
 #include "festival.h"
 #include "us_duration.h"
 
+EST_FeatureList met_duration;
+
+
 float phone_z_score(const EST_String &p, float dur)
 {	
     float mean, sd;

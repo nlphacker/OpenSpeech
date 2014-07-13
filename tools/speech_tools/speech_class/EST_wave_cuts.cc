@@ -36,7 +36,6 @@
 /*   EST_Wave class methods for cutting, and extracting                  */
 /*                                                                       */
 /*=======================================================================*/
-
 #include <cstring>
 #include "EST_unix.h"
 #include <cstdlib>

@@ -47,12 +47,12 @@
  /* first used.                                                          */
  /*                                                                      */
  /************************************************************************/
-
 #ifdef NO_EST
 #    include <unistd.h>
 #else
 #    include "EST_unix.h"
 #endif
+
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>

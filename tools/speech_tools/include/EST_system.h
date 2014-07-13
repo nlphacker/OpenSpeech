@@ -42,6 +42,8 @@
 #if !defined(EST_SYSTEM_H)
 #    define EST_SYSTEM_H 1
 
+#include <math.h>
+
 #if defined(SYSTEM_IS_WIN32)
 #   define _WINSOCKAPI_		/* horrible hack */
 #   define _LPCVOID_DEFINED     /* and another */

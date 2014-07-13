@@ -36,8 +36,6 @@
 /*    Signal processing functions which operate on entire utterances     */
 /*                                                                       */
 /*=======================================================================*/
-
-
 #include "EST_error.h"
 #include "EST_track_aux.h"
 #include "EST_inline_utils.h"

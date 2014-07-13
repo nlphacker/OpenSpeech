@@ -47,7 +47,11 @@ using namespace std;
 #include "EST_strcasecmp.h"
 #include "EST_bool.h"
 
+#ifdef SYSTEM_IS_UNIX
 extern "C" void abort(void);
+#else
+#endif
+
 
 /** A non-copyleft implementation of a string class to use with
   * compilers that aren't GNU C++.

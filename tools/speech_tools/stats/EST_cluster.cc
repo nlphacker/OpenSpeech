@@ -36,7 +36,6 @@
 /*                      Event RFC labelling                              */
 /*                                                                       */
 /*=======================================================================*/
-
 #include <cstdlib>
 #include "EST_system.h"
 #include "EST_FMatrix.h"
