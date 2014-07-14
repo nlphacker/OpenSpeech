@@ -72,7 +72,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\..\speech_tools\include;..\..\festival\src\include</AdditionalIncludeDirectories>
-      <AdditionalOptions>/DSYSTEM_IS_WIN32  /DSUPPORT_WIN32AUDIO  /DINSTANTIATE_TEMPLATES  /DFTLIBDIR="\"../../festival/lib\"" %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/DSYSTEM_IS_WIN32  /DSUPPORT_WIN32AUDIO  /DINSTANTIATE_TEMPLATES  /DFTLIBDIR="\"C:\\GitHub\\OpenSpeech\\tools\\festival\\lib\"" %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
