@@ -179,6 +179,10 @@ void usage(int status)
    exit(status);
 }
 
+#ifdef _WIN32
+#include <io.h>
+#include <fcntl.h>
+#endif
 
 int main(int argc, char **argv)
 {
@@ -193,6 +197,11 @@ int main(int argc, char **argv)
    void swipe(float_list * input, int length, double sample_freq,
               int frame_shift, double min, double max, double threshold,
               int otype);
+
+#ifdef _WIN32
+   setmode(fileno(stdout), O_BINARY);
+   setmode(fileno(stdin), O_BINARY);
+#endif
 
    if ((cmnd = strrchr(argv[0], '/')) == NULL)
       cmnd = argv[0];
