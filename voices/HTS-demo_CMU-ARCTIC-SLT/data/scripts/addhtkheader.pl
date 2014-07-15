@@ -74,6 +74,7 @@ $BYTE = pack( "s", $byte );
 # HTK feature type in short
 $TYPE = pack( "s", $type );
 
+binmode(STDOUT);
 # output header and data
 print $NFRAME;
 print $FRAMESHIFT;

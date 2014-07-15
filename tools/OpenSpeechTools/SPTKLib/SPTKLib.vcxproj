@@ -163,6 +163,7 @@
     <ClCompile Include="..\..\SPTK-3.7\lib\mseq.c" />
     <ClCompile Include="..\..\SPTK-3.7\lib\theq.c" />
     <ClCompile Include="..\..\SPTK-3.7\lib\toeplitz.c" />
+    <ClCompile Include="stdoutsetting.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -90,7 +90,6 @@
 
 static char *rcs_id = "$Id: vstat.c,v 1.35 2013/12/16 09:02:06 mataki Exp $";
 
-
 /*  Standard C Libralies  */
 #include <stdio.h>
 
