@@ -1948,11 +1948,13 @@ sub make_htsvoice($$) {
    # data information
    print HTSVOICE "[DATA]\n";
    open( I, "${voicedir}/dur.pdf" ) || die "Cannot open $!";
+   binmode(I);
    @STAT = stat(I);
    read( I, $DATA, $STAT[7] );
    close(I);
    print HTSVOICE $DATA;
    open( I, "${voicedir}/tree-dur.inf" ) || die "Cannot open $!";
+   binmode(I);
    @STAT = stat(I);
    read( I, $DATA, $STAT[7] );
    close(I);
@@ -1962,6 +1964,7 @@ sub make_htsvoice($$) {
       $tmp = get_stream_name($type);
       for ( $i = 0 ; $i < $nwin{$type} ; $i++ ) {
          open( I, "${voicedir}/$win{$type}[$i]" ) || die "Cannot open $!";
+		 binmode(I);
          @STAT = stat(I);
          read( I, $DATA, $STAT[7] );
          close(I);
@@ -1971,6 +1974,7 @@ sub make_htsvoice($$) {
    $type = "lpf";
    $tmp  = get_stream_name($type);
    open( I, "${voicedir}/$win{$type}[0]" ) || die "Cannot open $!";
+   binmode(I);
    @STAT = stat(I);
    read( I, $DATA, $STAT[7] );
    close(I);
@@ -1979,6 +1983,7 @@ sub make_htsvoice($$) {
    foreach $type (@cmp) {
       $tmp = get_stream_name($type);
       open( I, "${voicedir}/${type}.pdf" ) || die "Cannot open $!";
+      binmode(I);
       @STAT = stat(I);
       read( I, $DATA, $STAT[7] );
       close(I);
@@ -1987,6 +1992,7 @@ sub make_htsvoice($$) {
    $type = "lpf";
    $tmp  = get_stream_name($type);
    open( I, "${voicedir}/${type}.pdf" ) || die "Cannot open $!";
+   binmode(I);
    @STAT = stat(I);
    read( I, $DATA, $STAT[7] );
    close(I);
@@ -1995,6 +2001,7 @@ sub make_htsvoice($$) {
    foreach $type (@cmp) {
       $tmp = get_stream_name($type);
       open( I, "${voicedir}/tree-${type}.inf" ) || die "Cannot open $!";
+      binmode(I);
       @STAT = stat(I);
       read( I, $DATA, $STAT[7] );
       close(I);
@@ -2003,6 +2010,7 @@ sub make_htsvoice($$) {
    $type = "lpf";
    $tmp  = get_stream_name($type);
    open( I, "${voicedir}/tree-${type}.inf" ) || die "Cannot open $!";
+   binmode(I);
    @STAT = stat(I);
    read( I, $DATA, $STAT[7] );
    close(I);
@@ -2012,6 +2020,7 @@ sub make_htsvoice($$) {
       $tmp = get_stream_name($type);
       if ($useGV) {
          open( I, "${voicedir}/gv-${type}.pdf" ) || die "Cannot open $!";
+         binmode(I);
          @STAT = stat(I);
          read( I, $DATA, $STAT[7] );
          close(I);
@@ -2022,6 +2031,7 @@ sub make_htsvoice($$) {
       $tmp = get_stream_name($type);
       if ( $useGV && $cdgv ) {
          open( I, "${voicedir}/tree-gv-${type}.inf" ) || die "Cannot open $!";
+		 binmode(I);
          @STAT = stat(I);
          read( I, $DATA, $STAT[7] );
          close(I);
