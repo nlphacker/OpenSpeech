@@ -142,5 +142,5 @@ for ( $i = 1 ; $i <= $nwin ; $i++ ) {
 $n = $n * $nwin;
 
 $data = pack( "f$n", @transformed );
-
+binmode(STDOUT);
 print $data;

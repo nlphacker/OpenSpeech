@@ -65,7 +65,7 @@ if ( @ARGV < 2 ) {
    print "makefilter.pl sampling_rate flag\n";
    exit(0);
 }
-
+binmode(STDOUT);
 $samprate = $ARGV[0];
 $flag     = $ARGV[1];    # 0: low-pass 1: high-pass
 
