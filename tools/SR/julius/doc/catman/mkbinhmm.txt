@@ -1,0 +1,53 @@
+MKBINHMM(1)                                                        MKBINHMM(1)
+
+
+
+NAME
+       mkbinhmm - make binary hmmdefs for Julius from HTK ascii format hmmdefs
+
+SYNOPSIS
+       mkbinhmm ascii_hmmdefs_file binhmm_file
+
+DESCRIPTION
+       mkbinhmm convert an ascii hmmdefs file in HTK format to  a  binary  HMM
+       definition  file  for  Julius.  Using this binary file makes startup of
+       Julius much faster.
+
+       mkbinhmm can read gzipped hmmdefs file.
+
+OPTIONS
+       ascii_hmmdefs_file
+              file name of ascii HMM definition file in HTK format to be  con-
+              verted.
+
+       bingmm_file
+              file name of binary hmmdefs to be output.
+
+USAGE
+       At Julius, this binary hmmdefs can be used in the same way as the orig-
+       inal ascii format, i.e. "-h".  The ascii/binary format will be automat-
+       icall detected by Julius.
+
+SEE ALSO
+       julius(1)
+
+VERSION
+       This version is provided as part of Julius-3.5.1.
+
+COPYRIGHT
+       Copyright (c) 2003-2006 Kawahara Lab., Kyoto University
+       Copyright  (c)  2003-2005  Shikano  Lab., Nara Institute of Science and
+       Technology
+       Copyright (c) 2005-2006 Julius project team, Nagoya Institute of  Tech-
+       nology
+
+AUTHORS
+       LEE Akinobu (Nagoya Institute of Technology, Japan)
+       contact: julius@kuis.kyoto-u.ac.jp
+
+LICENSE
+       Same as Julius.
+
+
+
+4.3 Berkeley Distribution            LOCAL                         MKBINHMM(1)

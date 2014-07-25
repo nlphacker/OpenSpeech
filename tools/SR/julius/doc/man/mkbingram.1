@@ -1,0 +1,81 @@
+.de Sp
+.if t .sp .5v
+.if n .sp
+..
+.de Ip
+.br
+.ie \\n.$>=3 .ne \\$3
+.el .ne 3
+.IP "\\$1" \\$2
+..
+.TH MKBINGRAM 1 LOCAL
+.UC 6
+.SH NAME
+mkbingram - make binary N-gram from two arpa LMs
+.SH SYNOPSIS
+.B mkbingram 2gram.arpa rev3gram.arpa bingram
+.SH DESCRIPTION
+.I mkbingram
+makes a binary N-gram file for Julius from word 2-gram and reverse
+word 3-gram LMs in ARPA standard format.  Using the binary file, the
+initial startup of Julius becomes much faster.
+.PP
+Note that the word 2-gram and reverse word 3-gram should be trained in
+the same corpus, same parameters (i.e. cut-off thresholds) and have
+the same vocabulary.
+.PP
+.I mkbingram
+can read gzipped ARPA file.
+.PP
+.I mkbingram
+that comes with Julius version 3.5 and later can generate more 
+size-optimized binary N-gram by using 24bit index instead of 32bit
+and 2-gram backoff data compression.  The byte order was also
+changed from 3.5 to use the system's native order by default.
+.PP
+Although the old binary N-gram can be directly read by Julius,
+(in that case Julius performs on-line conversion), you can also
+update your binary N-gram using
+.I mkbingram
+using -d option.
+.PP
+Please note that binary N-gram file converted by mkbingram of version 3.5
+and later cannot be read by Julius/Julian 3.4.2 and earlier.
+.SH OPTIONS
+.Ip "2gram.arpa"
+input word 2-gram file in ARPA standard format.
+.Ip "rev3gram.arpa"
+input reverse word 3-gram in ARPA standard format.
+.Ip "-d old_bingram"
+input binary N-gram file (for conversion from old format).
+.Ip "bingram"
+output binary N-gram file.
+.SH EXAMPLE
+Convert ARPA files to binary format:
+.PP
+    % mkbingram ARPA_2gram ARPA_rev_3gram outfile
+.PP
+Convert old binary N-gram file to new format:
+.PP
+    % mkbingram -d old_bingram new_bingram
+
+.SH USAGE
+You can specify the generated binary N-gram file on Julius/Julian using
+option "-d".
+.SH "SEE ALSO"
+julius(1)
+.SH VERSION
+This version is provided as part of Julius-3.5.1.
+.SH COPYRIGHT
+Copyright (c) 1991-2006 Kawahara Lab., Kyoto University
+.br
+Copyright (c) 2000-2005 Shikano Lab., Nara Institute of Science and Technology
+.br
+Copyright (c) 2005-2006 Julius project team, Nagoya Institute of Technology
+.SH AUTHORS
+LEE Akinobu (Nagoya Institute of Technology, Japan)
+.br
+contact: julius@kuis.kyoto-u.ac.jp
+.SH LICENSE
+Same as 
+.I Julius.

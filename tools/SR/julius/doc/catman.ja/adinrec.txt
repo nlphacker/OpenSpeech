@@ -1,0 +1,71 @@
+ADINREC(1)                                                          ADINREC(1)
+
+
+
+NAME
+       adinrec - record one sentence utterance to a file
+
+SYNOPSIS
+       adinrec [options..] filename
+
+DESCRIPTION
+       adinrec   は マイク入力の音声区間を切り出してファイルに記録するツールで
+       す．
+
+       サンプリング周波数は任意に設定可能です．形式は 16bit monoral です．書き
+       出されるデータ形式は WAV です．既に同じ名前のファイルが存在する場合は上
+       書きします．
+
+       また，ファイル名に "-" を指定すると標準出力へ出力します．この場合データ
+       形式はRAWになります．
+
+       音 声区間の切り出しは，一定時間内の零交差数とパワー（振幅レベル）のしき
+       い値を用います．
+
+OPTIONS
+       -freq threshold
+              サンプリング周波数．単位は Hz (default: 16000)
+
+       -lv threslevel
+              波形の振幅レベルのしきい値 (0 - 32767)．(default: 2000)．
+
+       -zc zerocrossnum
+              １秒あたりの零交差数のしきい値 (default: 60)
+
+       -margin msec
+              音声区間開始部および終了部の前後のマー ジ ン． 単 位 は ミ リ 秒
+              (default: 300)
+
+       -nostrip
+              無 効な 0 サンプルの自動除去を行わないようにする．デフォルトは自
+              動除去を行う．
+
+       -zmean DC成分除去を行う．
+
+       -raw   RAWフォーマットでの出力を行う．形式は 16bit, big endian である．
+
+SEE ALSO
+       adintool(1),   julius(1),   sox(1),  wavplay(1),  wavrec(1),  aplay(1),
+       arecord(1)
+
+BUGS
+       バグ報告・問い合わせ・コメントなどは julius@lavender.ics.nitech.ac.jpま
+       でお願いします．
+
+VERSION
+       This version was distributed with Julius-3.5.
+
+COPYRIGHT
+       Copyright (c)   1991-2006 京都大学 河原研究室
+       Copyright (c)   2000-2005 奈良先端科学技術大学院大学 鹿野研究室
+       Copyright (c)   2005-2006 名古屋工業大学 Julius開発チーム
+
+AUTHORS
+       李 晃伸 (名古屋工業大学) が実装しました．
+
+LICENSE
+       Julius の使用許諾に準じます．
+
+
+
+4.3 Berkeley Distribution            LOCAL                          ADINREC(1)

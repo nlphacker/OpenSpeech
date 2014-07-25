@@ -1,0 +1,61 @@
+MKSS(1)                                                                MKSS(1)
+
+
+
+NAME
+       mkss - compute average spectrum from mic input for SS
+
+SYNOPSIS
+       mkss [options..] filename
+
+DESCRIPTION
+       mkss は指定時間分の音をマイク入力から録音し，その平均スペクトラムをファ
+       イルに出力するツールです．出力されたファイルは Julius でスペクトルサ ブ
+       ト ラクションのためのノイズスペクトルファイル（オプション "-ssload"）と
+       して利用できます．
+
+       音声の切り出しは行わず，起動と同時に録音を始めます．
+
+       サンプリング条件は16bit signed short (big endian), monoral で固定です．
+       データ形式はRAW(ヘッダ無し)，big endian形式です．既に同じ名前のファイル
+       が存在する場合は上書きします．
+
+       なおファイル名に "-" を指定することで標準出力へ出力することもできます．
+
+OPTIONS
+       -freq threshold
+              サンプリング周波数をHzで指定する．(default: 16000)
+
+       -len msec
+              録音時間長をミリ秒単位で指定する (default: 3000)．
+
+       -fsize samplenum
+              分析のフレームサイズをサンプル数で指定する (default: 400)．
+
+       -fshift samplenum
+              分析のフレームシフトをサンプル数で指定する (default: 160)．
+
+SEE ALSO
+       julius(1)
+
+BUGS
+       バグ報告・問い合わせ・コメントなどは julius@kuis.kyoto-u.ac.jp までお願
+       いします．
+
+VERSION
+       This version is provided as part of Julius-3.5.1.
+
+COPYRIGHT
+       Copyright (c) 2002-2006 京都大学 河原研究室
+       Copyright (c) 2002-2005 奈良先端科学技術大学院大学 鹿野研究室
+       Copyright (c) 2005-2006 名古屋工業大学 Julius開発チーム
+
+AUTHORS
+       李 晃伸 (名古屋工業大学) が実装しました．
+
+LICENSE
+       Julius の使用許諾に準じます．
+
+
+
+4.3 Berkeley Distribution            LOCAL                             MKSS(1)
