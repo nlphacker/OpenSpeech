@@ -47,28 +47,28 @@ SPEAKER = slt
 DATASET = cmu_us_arctic
 
 # awk and perl
-AWK  = awk
+AWK  = gawk
 PERL = /usr/bin/perl
 
 # SPTK commands
-X2X     = C:/GitHub/OpenSpeech/tools/OpenSpeechTools/Release/x2x
-MGCEP   = C:/GitHub/OpenSpeech/tools/OpenSpeechTools/Release/mcep
-LPC2LSP = C:/GitHub/OpenSpeech/tools/OpenSpeechTools/Release/lpc2lsp
-MERGE   = C:/GitHub/OpenSpeech/tools/OpenSpeechTools/Release/merge
-SOPR    = C:/GitHub/OpenSpeech/tools/OpenSpeechTools/Release/sopr
-NAN     = C:/GitHub/OpenSpeech/tools/OpenSpeechTools/Release/nan
-MINMAX  = C:/GitHub/OpenSpeech/tools/OpenSpeechTools/Release/minmax
-PITCH   = C:/GitHub/OpenSpeech/tools/OpenSpeechTools/Release/pitch
-FRAME   = C:/GitHub/OpenSpeech/tools/OpenSpeechTools/Release/frame
-WINDOW  = C:/GitHub/OpenSpeech/tools/OpenSpeechTools/Release/window
+X2X     = /usr/local/SPTK/bin/x2x
+MGCEP   = /usr/local/SPTK/bin/mcep
+LPC2LSP = /usr/local/SPTK/bin/lpc2lsp
+MERGE   = /usr/local/SPTK/bin/merge
+SOPR    = /usr/local/SPTK/bin/sopr
+NAN     = /usr/local/SPTK/bin/nan
+MINMAX  = /usr/local/SPTK/bin/minmax
+PITCH   = /usr/local/SPTK/bin/pitch
+FRAME   = /usr/local/SPTK/bin/frame
+WINDOW  = /usr/local/SPTK/bin/window
 
-# dumpfeats to extract utterance information 
-DUMPFEATS = C:/GitHub/OpenSpeech/tools/OpenSpeechTools/Release/festival.exe --script C:/GitHub/OpenSpeech/tools/festival/examples/dumpfeats.sh
+# dumpfeats to extract utterance information
+DUMPFEATS = /media/nlphacker/6d49e9e9-e900-4908-936f-a20586aea495//OpenSpeech/tools/festival/examples/dumpfeats
 
 # speech analysis conditions
 SAMPFREQ   = 48000   # Sampling frequency (48kHz)
 FRAMELEN   = 1200   # Frame length in point (1200 = 48000 * 0.025)
-FRAMESHIFT = 240    # Frame shift in point (240 = 48000 * 0.005)
+FRAMESHIFT = 240 # Frame shift in point (240 = 48000 * 0.005)
 WINDOWTYPE = 1 # Window type -> 0: Blackman 1: Hamming 2: Hanning
 NORMALIZE  = 1  # Normalization -> 0: none  1: by power  2: by magnitude
 FFTLEN     = 2048     # FFT length in point
@@ -100,7 +100,7 @@ mgc:
 		base=`basename $${raw} .raw`; \
 		min=`$(X2X) +sf $${raw} | $(MINMAX) | $(X2X) +fa | head -n 1`; \
 		max=`$(X2X) +sf $${raw} | $(MINMAX) | $(X2X) +fa | tail -n 1`; \
-		if [ -s $${raw} ]; then \
+		if [ -s $${raw} -a $${min} -gt -32768 -a $${max} -lt 32767 ]; then \
 			$(X2X) +sf $${raw} > tmp; \
 			if [ $(GAMMA) -eq 0 ]; then \
 				echo "Extracting MGC coefficients from $${raw}"; \
@@ -129,16 +129,14 @@ mgc:
 lf0:
 	# Extracting log f0 sequence from raw audio
 	mkdir -p lf0
-    
+
 	SAMPKHZ=`echo $(SAMPFREQ) | $(X2X) +af | $(SOPR) -m 0.001 | $(X2X) +fa`; \
 	for raw in raw/$(DATASET)_$(SPEAKER)_*.raw; do \
 		base=`basename $${raw} .raw`; \
 		min=`$(X2X) +sf $${raw} | $(MINMAX) | $(X2X) +fa | head -n 1`; \
 		max=`$(X2X) +sf $${raw} | $(MINMAX) | $(X2X) +fa | tail -n 1`; \
-		if [ -s $${raw} ]; then \
+		if [ -s $${raw} -a $${min} -gt -32768 -a $${max} -lt 32767 ]; then \
 			echo "Extracting f0 from $${raw}"; \
-			$(X2X) +sf $${raw} > $${raw}.tmp; \
-			echo "$(PITCH) -H $(UPPERF0) -L $(LOWERF0) -p $(FRAMESHIFT) -s $${SAMPKHZ} -o 2"; \
 			$(X2X) +sf $${raw} | $(PITCH) -H $(UPPERF0) -L $(LOWERF0) -p $(FRAMESHIFT) -s $${SAMPKHZ} -o 2 > lf0/$${base}.lf0; \
 			if [ -n "`$(NAN) lf0/$${base}.lf0`" ]; then \
 				echo " Failed to extract log f0 from $${raw}"; \
@@ -204,10 +202,10 @@ label:
 mlf:
 	# Generating monophone and fullcontext Master Label Files (MLF)
 	echo "#!MLF!#" > labels/mono.mlf
-	echo "\"*/$(DATASET)_$(SPEAKER)_*.lab\" -> \"C:/GitHub/sandbox/OpenSpeech/voices/HTS-demo_CMU-ARCTIC-SLT/data/labels/mono\"" >> labels/mono.mlf
+	echo "\"*/$(DATASET)_$(SPEAKER)_*.lab\" -> \"/media/nlphacker/6d49e9e9-e900-4908-936f-a20586aea495/OpenSpeech/voices/HTS-demo_CMU-ARCTIC-SLT/data/labels/mono\"" >> labels/mono.mlf
 
 	echo "#!MLF!#" > labels/full.mlf
-	echo "\"*/$(DATASET)_$(SPEAKER)_*.lab\" -> \"C:/GitHub/sandbox/OpenSpeech/voices/HTS-demo_CMU-ARCTIC-SLT/data/labels/full\"" >> labels/full.mlf
+	echo "\"*/$(DATASET)_$(SPEAKER)_*.lab\" -> \"/media/nlphacker/6d49e9e9-e900-4908-936f-a20586aea495/OpenSpeech/voices/HTS-demo_CMU-ARCTIC-SLT/data/labels/full\"" >> labels/full.mlf
 
 list:
 	# Generating a fullcontext model list file
@@ -246,7 +244,7 @@ scp:
 	mkdir -p scp
 
 	rm -f scp/train.scp
-	for cmp in C:/GitHub/sandbox/OpenSpeech/voices/HTS-demo_CMU-ARCTIC-SLT/data/cmp/$(DATASET)_$(SPEAKER)_*.cmp; do \
+	for cmp in /media/nlphacker/6d49e9e9-e900-4908-936f-a20586aea495/OpenSpeech/voices/HTS-demo_CMU-ARCTIC-SLT/data/cmp/$(DATASET)_$(SPEAKER)_*.cmp; do \
 		if [ -s $${cmp} -a -s labels/mono/`basename $${cmp} .cmp`.lab -a -s labels/full/`basename $${cmp} .cmp`.lab ]; then \
 			echo $${cmp} >> scp/train.scp; \
 		fi \
@@ -254,7 +252,7 @@ scp:
 
 	# Generating a generation label script
 	rm -f scp/gen.scp
-	for lab in C:/GitHub/sandbox/OpenSpeech/voices/HTS-demo_CMU-ARCTIC-SLT/data/labels/gen/*.lab; do \
+	for lab in /media/nlphacker/6d49e9e9-e900-4908-936f-a20586aea495/OpenSpeech/voices/HTS-demo_CMU-ARCTIC-SLT/data/labels/gen/*.lab; do \
 		echo $${lab} >> scp/gen.scp; \
 	done
 

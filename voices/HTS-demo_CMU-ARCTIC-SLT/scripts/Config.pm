@@ -182,7 +182,7 @@ $cdgv       = 1;       # context-dependent GV
 
 # Directories & Commands ===============
 # project directories
-$prjdir = '/media/hts/OpenSpeech/voices/HTS-demo_CMU-ARCTIC-SLT';
+$prjdir = '/media/nlphacker/6d49e9e9-e900-4908-936f-a20586aea495/OpenSpeech/voices/HTS-demo_CMU-ARCTIC-SLT';
 
 # Perl
 $PERL = '/usr/bin/perl';

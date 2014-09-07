@@ -94,7 +94,7 @@ extend() {
 	eval "export $var"
 	}
 
-extend LD_LIBRARY_PATH "/media/hts/OpenTts/tools/speech_tools/lib:"
+extend LD_LIBRARY_PATH "/media/nlphacker/6d49e9e9-e900-4908-936f-a20586aea495/OpenSpeech/tools/speech_tools/lib:"
 
 
 UNDERLINE="sed -e '{p;s/./=/g;}'"
@@ -118,9 +118,9 @@ fi
 
 export EST_DATA
 
-EST_DATA=''/media/hts/OpenTts/tools/speech_tools'/testsuite/data'
+EST_DATA=''/media/nlphacker/6d49e9e9-e900-4908-936f-a20586aea495/OpenSpeech/tools/speech_tools'/testsuite/data'
 
-prepend PATH ''/media/hts/OpenTts/tools/speech_tools'/bin'
+prepend PATH ''/media/nlphacker/6d49e9e9-e900-4908-936f-a20586aea495/OpenSpeech/tools/speech_tools'/bin'
 
 export PS1 PS2 
 

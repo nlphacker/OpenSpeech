@@ -74,7 +74,7 @@ check_makefile()
 create_empty_makefile()
 {
     echo "  Creating Makefile"
-    cp '/media/hts/OpenTts/tools/speech_tools'/lib/est_program_makefile Makefile
+    cp '/media/nlphacker/6d49e9e9-e900-4908-936f-a20586aea495/OpenSpeech/tools/speech_tools'/lib/est_program_makefile Makefile
     chmod +w Makefile
 }
 
@@ -96,7 +96,7 @@ create_mainline()
 {
     m=$1
     echo "  Creating $m"
-    cp '/media/hts/OpenTts/tools/speech_tools'/lib/est_mainline "$m"
+    cp '/media/nlphacker/6d49e9e9-e900-4908-936f-a20586aea495/OpenSpeech/tools/speech_tools'/lib/est_mainline "$m"
     chmod +w "$m"
 }
 
@@ -184,7 +184,7 @@ extend() {
 	eval "export $var"
 	}
 
-extend LD_LIBRARY_PATH "/media/hts/OpenTts/tools/speech_tools/lib:"
+extend LD_LIBRARY_PATH "/media/nlphacker/6d49e9e9-e900-4908-936f-a20586aea495/OpenSpeech/tools/speech_tools/lib:"
 
 
 UNDERLINE="sed -e '{p;s/[^ 	]/=/g;}'"

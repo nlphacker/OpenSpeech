@@ -36,8 +36,8 @@
 #                                                                         #
 ###########################################################################
 
-TOP=/media/hts/festival
-EST='/media/hts/speech_tools'
+TOP=/media/nlphacker/6d49e9e9-e900-4908-936f-a20586aea495/OpenSpeech/tools/festival
+EST='/media/nlphacker/6d49e9e9-e900-4908-936f-a20586aea495/OpenSpeech/tools/speech_tools'
 
 
 # festival shared setup 
@@ -57,7 +57,7 @@ extend() {
 	eval "export $var"
 	}
 
-extend LD_LIBRARY_PATH "/media/hts/speech_tools/lib:"
+extend LD_LIBRARY_PATH "/media/nlphacker/6d49e9e9-e900-4908-936f-a20586aea495/OpenSpeech/tools/speech_tools/lib:"
 
 
 useage()
