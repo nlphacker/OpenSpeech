@@ -32,8 +32,53 @@
 /*         File: HTrain.c   HMM Training Support Routines      */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *htrain_version = "!HVER!HTrain:   3.4.1 [CUED 12/03/09]";
-char *htrain_vc_id = "$Id: HTrain.c,v 1.1.1.1 2006/10/11 09:54:58 jal58 Exp $";
+char *htrain_vc_id = "$Id: HTrain.c,v 1.22 2011/06/16 04:18:29 uratec Exp $";
 
 #include "HShell.h"
 #include "HMem.h"
@@ -89,6 +134,12 @@ void InitTrain(void)
       if (GetConfBool(cParm,nParm,"BINARYACCFORMAT",&b)) ldBinary = b;
       if (GetConfBool(cParm,nParm,"STREAMPROJECTION",&b)) strmProj = b;
    }
+}
+
+/* EXPORT->ResetTrain: reset module */
+void ResetTrain (void)
+{
+   return;   /* do nothing */
 }
 
 /* -------------------- Generic Sequence Type ------------------- */
@@ -199,8 +250,8 @@ SegStore CreateSegStore(MemHeap *x, Observation obs, int segLen)
    ss = (SegStore)New(x,sizeof(SegStoreRec));
    ss->mem = x;
    ss->o = obs; ss->segLen = segLen;
-   ss->hasfv = (obs.pk&BASEMASK) != DISCRETE;
-   ss->hasvq = (obs.pk&HASVQ)  || (obs.pk&BASEMASK) == DISCRETE;
+   ss->hasfv = ((obs.pk&BASEMASK) != DISCRETE) ? TRUE : FALSE;
+   ss->hasvq = ((obs.pk&HASVQ)  || (obs.pk&BASEMASK) == DISCRETE) ? TRUE : FALSE;
    if (ss->hasfv) ss->fvSegs = CreateSequence(x,100);
    if (ss->hasvq) ss->vqSegs = CreateSequence(x,100);
    return ss;
@@ -214,8 +265,8 @@ void LoadSegment(SegStore ss, HTime start, HTime end, ParmBuf pbuf)
    BufferInfo info;
    long i,st,en,len;
    int s,S = ss->o.swidth[0];
-   short *vqItem;
-   Vector *fvItem;
+   short *vqItem, *ovq;
+   Vector *fvItem, *ofv;
    
    GetBufferInfo(pbuf,&info);
    st = (long)(start/info.tgtSampRate);
@@ -236,14 +287,16 @@ void LoadSegment(SegStore ss, HTime start, HTime end, ParmBuf pbuf)
       ReadAsTable(pbuf,i,&(ss->o));
       if (ss->hasvq) {
          vqItem = (short *)New(ss->mem,sizeof(short)*(S+1));
+         ovq = ss->o.vq;
          for (s=1; s<=S; s++) 
-            vqItem[s] = ss->o.vq[s];
+            vqItem[s] = ovq[s];
          StoreItem(vq, (Ptr) vqItem);
       }
       if (ss->hasfv) {
          fvItem = (Vector *)New(ss->mem,sizeof(Vector)*(S+1));
+         ofv = ss->o.fv;
          for (s=1; s<=S; s++) 
-            fvItem[s] = ss->o.fv[s];
+            fvItem[s] = ofv[s];
          StoreItem(fv, (Ptr) fvItem);
       }
    }
@@ -283,20 +336,22 @@ Observation GetSegObs(SegStore ss, int i, int j)
    Sequence vq;
    Sequence fv;
    int s,S = ss->o.swidth[0];
-   short *vqItem;
-   Vector *fvItem;
+   short *vqItem, *ovq;
+   Vector *fvItem, *ofv;
    
    if (ss->hasvq) {
       vq = (Sequence) GetItem(ss->vqSegs,i);
       vqItem = (short *) GetItem(vq,j);
+      ovq = ss->o.vq;
       for (s=1; s<=S; s++) 
-         ss->o.vq[s] = vqItem[s];
+         ovq[s] = vqItem[s];
    }     
    if (ss->hasfv) {
       fv = (Sequence) GetItem(ss->fvSegs,i);
       fvItem = (Vector *) GetItem(fv,j);
+      ofv = ss->o.fv;
       for (s=1; s<=S; s++) 
-         ss->o.fv[s] = fvItem[s];
+         ofv[s] = fvItem[s];
    }     
    return ss->o;
 }
@@ -791,7 +846,7 @@ ClusterSet *FlatCluster(MemHeap *x, Sequence vpool, int nc,
             printf("   c=%d, iter=%d, cost = %e\n",c,iter,newCost);
             fflush(stdout);
          }
-         converged = (iter>=maxIter) || ((oldCost-newCost) / oldCost < 0.001);
+         converged = ((iter>=maxIter) || ((oldCost-newCost) / oldCost < 0.001)) ? TRUE : FALSE;
          FindCentres(1,curNumCl); oldCost = newCost;
       }
       if (trace & T_DCM) DumpClusterMap();
@@ -961,10 +1016,10 @@ void TMAttachAccs(HMMSet *hset, MemHeap *x, int nPara)
    
    nStreams = hset->swidth[0];
    for (s=1;s<=nStreams;s++){
-      size = hset->swidth[s];
       tmRec = hset->tmRecs[s];
       for (m=1;m<=tmRec.nMix;m++){
          mp = tmRec.mixes[m];
+         size = VectorSize(mp->mean);
          SetHook(mp->mean,CreateMuAcc(x,size,nPara));
          SetHook(mp->cov.var,CreateVaAcc(x,size,mp->ckind,nPara));
       }
@@ -978,7 +1033,7 @@ void AttachAccs(HMMSet *hset, MemHeap *x, UPDSet uFlags){ AttachAccsParallel(hse
 void AttachAccsParallel(HMMSet *hset, MemHeap *x, UPDSet uFlags, int nPara)
 {
    HMMScanState hss;
-   StreamElem *ste;
+   StreamInfo *sti;
    HLink hmm;
    int size;
 
@@ -988,13 +1043,14 @@ void AttachAccsParallel(HMMSet *hset, MemHeap *x, UPDSet uFlags, int nPara)
       hmm = hss.hmm;
       hmm->hook = (void *)0;  /* used as numEg counter */
       while (GoNextState(&hss,TRUE)) {
+         hss.si->hook = (void *)0;  /* used as state occ counter */ 
          while (GoNextStream(&hss,TRUE)) {
-            ste = hss.ste;
-            ste->hook = CreateWtAcc(x,hss.M, nPara);
-            if ((uFlags&UPSEMIT) && (strmProj)) size = hset->vecSize; /* handles multiple streams */
-            else size = hset->swidth[hss.s];
+            sti = hss.sti;
+            sti->hook = CreateWtAcc(x,hss.M, nPara);
             if (hss.isCont)                     /* PLAINHS or SHAREDHS */
                while (GoNextMix(&hss,TRUE)) {
+                  if ((uFlags&UPSEMIT) && (strmProj)) size = hset->vecSize; /* handles multiple streams */
+                  else size = VectorSize(hss.mp->mean);
                   if (DoPreComps(hset->hsKind))
                      hss.mp->hook = CreatePreComp(x);
 		  if (!IsSeenV(hss.mp->mean)) {
@@ -1073,7 +1129,7 @@ void ZeroAccs(HMMSet *hset, UPDSet uFlags){ ZeroAccsParallel(hset,uFlags,1); }
 void ZeroAccsParallel(HMMSet *hset, UPDSet uFlags, int nPara)
 {
    HMMScanState hss;
-   StreamElem *ste;
+   StreamInfo *sti;
    HLink hmm;
    TrAcc *ta;
    WtAcc *wa;
@@ -1088,8 +1144,8 @@ void ZeroAccsParallel(HMMSet *hset, UPDSet uFlags, int nPara)
       hmm->hook = (void *)0;  /* used as numEg counter */
       while (GoNextState(&hss,TRUE)) {
          while (GoNextStream(&hss,TRUE)) {
-            ste = hss.ste;
-            wa = (WtAcc *)ste->hook;
+            sti = hss.sti;
+            wa = (WtAcc *)sti->hook;
             for(i=start;i<=end;i++){
 	      ZeroVector(wa[i].c); wa[i].occ = 0.0;
 	      wa[i].time = -1; wa[i].prob = NULL;
@@ -1196,7 +1252,7 @@ void ShowAccsParallel(HMMSet *hset, UPDSet uFlags, int index)
 {
    const int mw=12;
    HMMScanState hss;
-   StreamElem *ste;
+   StreamInfo *sti;
    HLink hmm;
    TrAcc *ta;
    WtAcc *wa;
@@ -1210,10 +1266,10 @@ void ShowAccsParallel(HMMSet *hset, UPDSet uFlags, int index)
       while (GoNextState(&hss,TRUE)) {
          printf(" state %d\n",hss.i);
          while (GoNextStream(&hss,TRUE)) {
-            ste = hss.ste;
+            sti = hss.sti;
             printf("  stream %d\n",hss.s);
-            if (ste->hook != NULL) {
-               wa = (WtAcc *)ste->hook;
+            if (sti->hook != NULL) {
+               wa = (WtAcc *)sti->hook;
                printf("   wt occ=%f\n",wa[index].occ);
                ShowVector("   wts=",wa[index].c,mw);
             }
@@ -1263,7 +1319,7 @@ void ShowAccsParallel(HMMSet *hset, UPDSet uFlags, int index)
 void AttachPreComps(HMMSet *hset, MemHeap *x)
 {
    HMMScanState hss;
-   StreamElem *ste;
+   StreamInfo *sti;
    HLink hmm;
 
    prC=0; wtC=0;
@@ -1273,8 +1329,8 @@ void AttachPreComps(HMMSet *hset, MemHeap *x)
       hmm->hook = (void *)0;  /* used as numEg counter */
       while (GoNextState(&hss,TRUE)) {
          while (GoNextStream(&hss,TRUE)) {
-            ste = hss.ste;
-            ste->hook = CreateWtAcc(x,hss.M, 1);
+            sti = hss.sti;
+            sti->hook = CreateWtAcc(x,hss.M, 1);
             if (hss.isCont)                     /* PLAINHS or SHAREDHS */
                while (GoNextMix(&hss,TRUE)) {
                   if (DoPreComps(hset->hsKind))
@@ -1291,7 +1347,7 @@ void AttachPreComps(HMMSet *hset, MemHeap *x)
 /* EXPORT->ResetPreComps: reset the precomputed prob fields in hset */
 void ResetPreComps(HMMSet *hset)
 {
-   StreamElem *ste;
+   StreamInfo *sti;
    HMMScanState hss;
    WtAcc *wa;
    PreComp *p;
@@ -1300,8 +1356,8 @@ void ResetPreComps(HMMSet *hset)
    do {
       while (GoNextState(&hss,TRUE)) {
          while (GoNextStream(&hss,TRUE)) {
-            ste = hss.ste;
-            wa = (WtAcc *)ste->hook;
+            sti = hss.sti;
+            wa = (WtAcc *)sti->hook;
             wa->time = -1; wa->prob = NULL;
             if (hss.isCont)
                while (GoNextMix(&hss,TRUE)) {
@@ -1319,6 +1375,7 @@ void ResetHMMPreComps(HLink hmm, int nStreams)
 {
    StateElem *se;
    StreamElem *ste;
+   StreamInfo *sti;
    MixtureElem *me;
    WtAcc *wa;
    PreComp *p;
@@ -1329,10 +1386,11 @@ void ResetHMMPreComps(HLink hmm, int nStreams)
    for (i=2; i<nStates; i++,se++){
       ste = se->info->pdf+1;
       for (s=1;s<=nStreams; s++,ste++){
-         wa = (WtAcc *)ste->hook; nMixes = ste->nMix;
+         sti = ste->info;
+         wa = (WtAcc *)sti->hook; nMixes = sti->nMix;
          if (wa != NULL) {
             wa->time = -1; wa->prob = NULL;
-            me = ste->spdf.cpdf+1;
+            me = sti->spdf.cpdf+1;
             for (m=1; m<=nMixes; m++,me++){
                p = (PreComp *)me->mpdf->hook;
                p->time = -1; p->prob = LZERO;
@@ -1347,6 +1405,7 @@ void ResetHMMWtAccs(HLink hmm, int nStreams)
 {
    StateElem *se;
    StreamElem *ste;
+   StreamInfo *sti;
    WtAcc *wa;
    int i,s,nStates;
 
@@ -1355,7 +1414,8 @@ void ResetHMMWtAccs(HLink hmm, int nStreams)
    for (i=2; i<nStates; i++,se++){
       ste = se->info->pdf+1;
       for (s=1;s<=nStreams; s++,ste++){
-         wa = (WtAcc *)ste->hook;
+         sti = ste->info;
+         wa = (WtAcc *)sti->hook;
          if (wa != NULL) {
             wa->time = -1; wa->prob = NULL;
          }
@@ -1368,6 +1428,21 @@ static void DumpPName(FILE *f, char *pname)
 {
    WriteString(f,pname,DBL_QUOTE);
    fprintf(f,"\n");
+}
+
+/* DumpStateOcc: dump state occ to file f */
+static void DumpStateOcc(FILE *f, HMMSet *hset, StateInfo *si)
+{
+   float occ;
+
+   if (hset->numSharedStreams>0) {
+   	if (si->hook==NULL)
+         occ = 0.0;
+      else
+         memcpy(&occ,&(si->hook),sizeof(float));
+      WriteFloat(f,&occ,1,ldBinary);
+      if (!ldBinary) fprintf(f,"\n");
+   }
 }
 
 /* DumpWtAcc: dump wt acc to file f */
@@ -1456,7 +1531,7 @@ FILE * DumpAccsParallel(HMMSet *hset, char *fname, int n, UPDSet uFlags, int ind
    FILE *f;
    HLink hmm;
    HMMScanState hss;
-   int m,s;
+   int m,s,i;
    MixPDF* mp;
    
    f = GetDumpFile(fname,n);
@@ -1464,10 +1539,12 @@ FILE * DumpAccsParallel(HMMSet *hset, char *fname, int n, UPDSet uFlags, int ind
    do {
       hmm = hss.hmm;
       DumpPName(f,hss.mac->id->name);     
-      WriteInt(f,(int *)&hmm->hook,1,ldBinary); 
+      i = (int)((long) hmm->hook);
+      WriteInt(f,&i,1,ldBinary);
       while (GoNextState(&hss,TRUE)) {
+         DumpStateOcc(f,hset,hss.si);
          while (GoNextStream(&hss,TRUE)) {
-            DumpWtAcc(f,((WtAcc *)hss.ste->hook)+index);
+            DumpWtAcc(f,((WtAcc *)hss.sti->hook)+index);
             if (hss.isCont){
                while (GoNextMix(&hss,TRUE)) {
                   if ((uFlags&UPMEANS) && (!IsSeenV(hss.mp->mean))) {
@@ -1502,6 +1579,19 @@ FILE * DumpAccsParallel(HMMSet *hset, char *fname, int n, UPDSet uFlags, int ind
       }
    }    
    return f;
+}
+
+/* LoadStateOcc: new state occ from file f */
+static void LoadStateOcc(Source *src, HMMSet *hset, StateInfo *si)
+{
+   float tocc, socc;
+
+   if (hset->numSharedStreams>0) {
+      memcpy(&tocc,&(si->hook),sizeof(float));
+      ReadFloat(src,&socc,1,ldBinary);
+      tocc += socc;
+      memcpy(&(si->hook),&tocc,sizeof(float));
+   }
 }
 
 /* LoadWtAcc: new inc of wt acc from file f */
@@ -1628,7 +1718,8 @@ Source LoadAccsParallel(HMMSet *hset, char *fname, UPDSet uFlags, int index)
    Source src;
    HLink hmm;
    HMMScanState hss;
-   int size,negs,m,s;
+   int size,m,s,i;
+   long negs;
    MixPDF* mp;
    
    if (trace & T_ALD)
@@ -1640,15 +1731,18 @@ Source LoadAccsParallel(HMMSet *hset, char *fname, UPDSet uFlags, int index)
    do {
       hmm = hss.hmm;
       CheckPName(&src,hss.mac->id->name); 
-      ReadInt(&src,&negs,1,ldBinary);
-      negs += (int)hmm->hook; hmm->hook = (void *)negs;
+      ReadInt(&src,&i,1,ldBinary); negs = (long) i;
+      negs += (long)hmm->hook; hmm->hook = (void *)negs;
       while (GoNextState(&hss,TRUE)) {
+         LoadStateOcc(&src,hset,hss.si);
          while (GoNextStream(&hss,TRUE)) {
-            if ((uFlags&UPSEMIT) && (strmProj)) size = hset->vecSize;
-            else size = hset->swidth[hss.s];
-            LoadWtAcc(&src,((WtAcc *)hss.ste->hook)+index,hss.M);
+            LoadWtAcc(&src,((WtAcc *)hss.sti->hook)+index,hss.M);
             if (hss.isCont){
                while (GoNextMix(&hss,TRUE)) {
+                  if ((uFlags&UPSEMIT) && (strmProj)) 
+                     size = hset->vecSize;
+                  else
+                     size = VectorSize(hss.mp->mean);  /* MSD */
                   if ((uFlags&UPMEANS) && (!IsSeenV(hss.mp->mean))) {
 		     LoadMuAcc(&src,((MuAcc *)GetHook(hss.mp->mean))+index,size);
                      TouchV(hss.mp->mean);
@@ -1675,9 +1769,9 @@ Source LoadAccsParallel(HMMSet *hset, char *fname, UPDSet uFlags, int index)
    EndHMMScan(&hss);
    if (hset->hsKind == TIEDHS){
       for (s=1; s<=hset->swidth[0]; s++){
-         size = hset->swidth[s];
          for (m=1;m<=hset->tmRecs[s].nMix; m++){
             mp = hset->tmRecs[s].mixes[m];
+            size = VectorSize(mp->mean);  /* MSD */
             LoadMuAcc(&src,((MuAcc *)GetHook(mp->mean))+index,size);
             LoadVaAcc(&src,((VaAcc *)GetHook(mp->cov.var))+index,size,mp->ckind);
          }
@@ -1713,11 +1807,10 @@ void RestoreAccs(HMMSet *hset){ RestoreAccsParallel(hset,0); }
 void RestoreAccsParallel(HMMSet *hset, int index)
 {
    HMMScanState hss;
-   int s,m,size;
+   int s,m;
 
    if(hset->hsKind==TIEDHS){
       for (s=1; s<=hset->swidth[0]; s++){
-         size = hset->swidth[s];
          for (m=1;m<=hset->tmRecs[s].nMix; m++)
             RestorePDF(hset->tmRecs[s].mixes[m], index);
       }
@@ -1771,14 +1864,15 @@ double ScaleAccsParallel(HMMSet *hset, float wt, int index)
    /* Do gaussians. */
    if(hset->hsKind==TIEDHS){
       for (s=1; s<=hset->swidth[0]; s++){
-         size = hset->swidth[s];
-         for (m=1;m<=hset->tmRecs[s].nMix; m++)
+	 for (m=1;m<=hset->tmRecs[s].nMix; m++) {
+            size = VectorSize(hset->tmRecs[s].mixes[m]->mean);
             ans += ScalePDF(hset->tmRecs[s].mixes[m], size, index, wt);
+      }
       }
    } else {
       NewHMMScan(hset, &hss);
       while (GoNextMix(&hss,FALSE)) {
-         size = hset->swidth[hss.s];
+         size = VectorSize(hss.mp->mean);
          ans += ScalePDF(hss.mp, size, index, wt);
       }
       EndHMMScan(&hss);
@@ -1789,11 +1883,11 @@ double ScaleAccsParallel(HMMSet *hset, float wt, int index)
    NewHMMScan(hset,&hss);
    while(GoNextState(&hss,FALSE)){ /*skip over hmm boundaries.*/
       while(GoNextStream(&hss,TRUE)){ /*Don't skip over state boundaries.*/
-         StreamElem *ste = hss.ste; int m, nMix;
-         WtAcc *wa = ((WtAcc*) hss.ste->hook)+index;
+         StreamInfo *sti = hss.sti; int m, nMix;
+         WtAcc *wa = ((WtAcc*) hss.sti->hook)+index;
          switch(hset->hsKind){
          case PLAINHS: case SHAREDHS:
-            nMix = (ste->nMix>0?ste->nMix:-ste->nMix);
+            nMix = (sti->nMix>0?sti->nMix:-sti->nMix);
             wa->occ*=wt; /*take the value wa->occ to the desired value.*/
             for(m=1;m<=nMix;m++){
                wa->c[m] *= wt; /*scale the WtAcc->c[]*/
@@ -1835,5 +1929,4 @@ double ScaleAccsParallel(HMMSet *hset, float wt, int index)
    return ans;
 }
 
-
-/* ------------------------ End of HTrain.c ----------------------- */
+/* ------------------------ End of HTrain.c ------------------------ */

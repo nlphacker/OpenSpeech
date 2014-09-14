@@ -19,8 +19,53 @@
 /*         File: HRec.c  Viterbi Recognition Engine Library    */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hrec_version = "!HVER!HRec:   3.4.1 [CUED 12/03/09]";
-char *hrec_vc_id = "$Id: HRec.c,v 1.1.1.1 2006/10/11 09:54:58 jal58 Exp $";
+char *hrec_vc_id = "$Id: HRec.c,v 1.11 2011/06/16 04:18:29 uratec Exp $";
 
 #include "HShell.h"
 #include "HMem.h"
@@ -46,6 +91,7 @@ char *hrec_vc_id = "$Id: HRec.c,v 1.1.1.1 2006/10/11 09:54:58 jal58 Exp $";
 
 static int trace=0;
 static Boolean forceOutput=FALSE;
+static Boolean pde=FALSE; /* partial distance elimination */
 
 const Token null_token={LZERO,0.0,NULL,NULL};
 
@@ -149,7 +195,7 @@ struct _NetInst
 typedef struct precomp
 {
    int id;                  /* Unique identifier for current frame */
-   LogFloat outp;           /* State/mixture output likelihood */
+   LogFloat outp;           /* State/Stream/Mixture output likelihood */
 }
 PreComp;
 
@@ -160,8 +206,11 @@ struct psetinfo
 
    int max;                 /* Max states in HMM set */
    Boolean mixShared;
+   Boolean streamShared;
    int nsp;
    PreComp *sPre;           /* Array[1..nsp] State PreComps */
+   int npp;
+   PreComp *pPre;           /* Array[1..npp] Stream(pdf) PreComps */
    int nmp;
    PreComp *mPre;           /* Array[1..nmp] Shared mixture PreComps */
    int ntr;
@@ -269,9 +318,15 @@ void InitRec(void)
    if (nParm>0){
       if (GetConfInt(cParm,nParm,"TRACE",&i)) trace = i;
       if (GetConfBool(cParm,nParm,"FORCEOUT",&b)) forceOutput = b;
+      if (GetConfBool(cParm,nParm,"PDE",&b)) pde = b;
    }
 }
 
+/* EXPORT->ResetRec: reset module */
+void ResetRec(void)
+{
+   return;  /* do nothing */
+}
 
 /* Basic token merging step used during propagation.      */ 
 /* Token in cmp plus extra info from src merged into res. */
@@ -435,7 +490,7 @@ static void TokSetMerge(TokenSet *res,Token *cmp,TokenSet *src)
 }
 
 /* Caching version of SOutP used when mixPDFs shared */
-static LogFloat cSOutP(HMMSet *hset, int s, Observation *x, StreamElem *se,
+static LogFloat cMOutP(HMMSet *hset, int s, Observation *x, StreamInfo *sti,
                        int id)
 {
    PreComp *pre;
@@ -451,8 +506,8 @@ static LogFloat cSOutP(HMMSet *hset, int s, Observation *x, StreamElem *se,
    case PLAINHS:
    case SHAREDHS:
       v=x->fv[s];
-      me=se->spdf.cpdf+1;
-      if (se->nMix==1){     /* Single Mixture Case */
+      me=sti->spdf.cpdf+1;
+      if (sti->nMix==1){     /* Single Mixture Case */
          if (me->mpdf->mIdx>0 && me->mpdf->mIdx<=pri->psi->nmp)
             pre=pri->psi->mPre+me->mpdf->mIdx;
          else pre=NULL;
@@ -469,7 +524,7 @@ static LogFloat cSOutP(HMMSet *hset, int s, Observation *x, StreamElem *se,
             bx=pre->outp;
       } else {
          bx=LZERO;                   /* Multi Mixture Case */
-         for (m=1; m<=se->nMix; m++,me++) {
+         for (m=1; m<=sti->nMix; m++,me++) {
             wt = MixLogWeight(hset, me->weight);
             if (wt>LMINMIX) {   
                if (me->mpdf->mIdx>0 && me->mpdf->mIdx<=pri->psi->nmp)
@@ -498,7 +553,7 @@ static LogFloat cSOutP(HMMSet *hset, int s, Observation *x, StreamElem *se,
          HError(7071,"SOutP: incompatible stream widths %d vs %d",
                 vSize,hset->swidth[s]);
       sum = 0.0; tr = hset->tmRecs+s;
-      tm = tr->probs+1; tv = se->spdf.tpdf;
+      tm = tr->probs+1; tv = sti->spdf.tpdf;
       for (m=1; m<=tr->topM; m++,tm++)
          sum += tm->prob * tv[tm->index];
       return (sum>=MINLARG)?log(sum)+tr->maxP:LZERO;
@@ -507,13 +562,92 @@ static LogFloat cSOutP(HMMSet *hset, int s, Observation *x, StreamElem *se,
    return LZERO; /* to keep compiler happy */   
 }
 
+/*  outP calculation from HModel.c and extended for new adapt code */
+static LogFloat SOutP_HMod (HMMSet *hset, int s, Observation *x, StreamInfo *sti, int id)
+{
+   int m;
+   LogFloat bx,px,wt,det;
+   MixtureElem *me;
+   MixPDF *mp;
+   Vector v,otvs;
+
+   /* Note hset->kind == SHAREDHS */
+   assert (hset->hsKind == SHAREDHS);
+
+   v=x->fv[s];
+   me=sti->spdf.cpdf+1;
+   if (sti->nMix==1){     /* Single Mixture Case */
+      bx= MOutP(ApplyCompFXForm(me->mpdf,v,inXForm,&det,id),me->mpdf);
+      bx += det;
+   }
+   else if (!pde) {
+      bx=LZERO;                   /* Multi Mixture Case */
+      for (m=1; m<=sti->nMix; m++,me++) {
+         wt = MixLogWeight(hset,me->weight);
+         if (wt>LMINMIX) {
+            px= MOutP(ApplyCompFXForm(me->mpdf,v,inXForm,&det,id),me->mpdf);
+	    px += det;
+            bx=LAdd(bx,wt+px);
+         }
+      }
+   }
+   else {   /* Partial distance elimination */
+      wt = MixLogWeight(hset,me->weight);
+      mp = me->mpdf;
+      if (!hset->msdflag[s] || SpaceOrder(v)==VectorSize(mp->mean)) {
+         otvs = ApplyCompFXForm(mp,v,inXForm,&det,id);
+         px = IDOutP(otvs,VectorSize(otvs),mp);
+      }
+      else {
+         px = LZERO;
+         det = 0.0;
+      }
+      bx = wt+px+det;
+      for (m=2,me=sti->spdf.cpdf+2;m<=sti->nMix;m++,me++) {
+         wt = MixLogWeight(hset,me->weight);
+         if (wt>LMINMIX){
+            mp = me->mpdf;
+            otvs = ApplyCompFXForm(mp,v,inXForm,&det,id);
+            if (PDEMOutP(otvs,mp,&px,bx-wt-det) == TRUE)
+               bx = LAdd(bx,wt+px+det);
+         }
+      }
+   }
+   return bx;
+}
+
+/* Caching version of SOutP used when streaminfo shared */
+static LogFloat cSOutP(HMMSet *hset, int s, Observation *x, StreamInfo *sti,
+                       int id)
+{
+   PreComp *pre;
+   LogFloat bx;
+   Vector v;
+   
+   /* Note hset->kind == SHAREDHS */
+   v=x->fv[s];
+   if (sti->pIdx>0 && sti->pIdx<=pri->psi->npp)
+      pre= pri->psi->pPre + sti->pIdx;
+   else pre=NULL;
+   if (pre==NULL)
+      bx=SOutP_HMod(hset,s,x,sti,id);
+   else if (pre->id!=id) {
+      bx=SOutP_HMod(hset,s,x,sti,id);
+      pre->id=id;
+      pre->outp=bx;
+   }
+   else
+      bx=pre->outp;
+   
+   return bx;
+}
 
 /* Version of POutP that caches outp values with frame id */
 static LogFloat cPOutP(PSetInfo *psi,Observation *obs,StateInfo *si,int id)
 {
    PreComp *pre;
    LogFloat outp;
-   StreamElem *se;
+   StreamInfo *sti;
    Vector w;
    int s,S;
 
@@ -527,20 +661,28 @@ static LogFloat cPOutP(PSetInfo *psi,Observation *obs,StateInfo *si,int id)
 #endif
    
    if (pre->id!=id) { /* bodged at the moment - fix !! */
-      if ((FALSE && psi->mixShared==FALSE) || (psi->hset->hsKind == DISCRETEHS)) {
+      if ((FALSE && psi->mixShared==FALSE && psi->streamShared==FALSE) || 
+          (psi->hset->hsKind == DISCRETEHS)) {
          outp=POutP(psi->hset,obs,si);
       }
       else {
          S=obs->swidth[0];
          if (S==1 && si->weights==NULL){
-            outp=cSOutP(psi->hset,1,obs,si->pdf+1,id);
+            sti=si->pdf[1].info;
+            if (psi->streamShared)
+               outp=cSOutP(psi->hset,1,obs,sti,id);
+            else 
+               outp=cMOutP(psi->hset,1,obs,sti,id);
          }
          else {
             outp=0.0;
-            se=si->pdf+1;
             w=si->weights;
-            for (s=1;s<=S;s++,se++){
-               outp+=w[s]*cSOutP(psi->hset,s,obs,se,id);
+            for (s=1;s<=S;s++) {
+               sti = si->pdf[s].info;
+               if (psi->streamShared)
+                  outp+=w[s]*cSOutP(psi->hset,s,obs,sti,id);
+               else
+                  outp+=w[s]*cMOutP(psi->hset,s,obs,sti,id);
             }
          }
       }
@@ -760,6 +902,7 @@ static void StepHMM1(NetNode *node) /* Model internal propagation NBEST */
    }
    if (res->tok.like>LSMALL){
       tok.like=res->tok.like+inst->wdlk;
+      tok.align=NULL; tok.path=NULL; tok.lm=0.0;
       if (tok.like > pri->wordMaxTok.like) {
          pri->wordMaxTok=tok;
          pri->wordMaxNode=node;
@@ -1441,7 +1584,7 @@ PSetInfo *InitPSetInfo(HMMSet *hset)
    HLink hmm;
    MLink q;
    PreComp *pre;
-   char name[80];
+   char name[MAXSTRLEN];
    static int psid=0;
 
    psi=(PSetInfo*) New(&gcheap,sizeof(PSetInfo));
@@ -1481,9 +1624,25 @@ PSetInfo *InitPSetInfo(HMMSet *hset)
             CreateSEIndex(psi,hmm);
          }
       }
+
+   /* state */
    psi->nsp=hset->numStates;
    psi->sPre=(PreComp*) New(&psi->heap, sizeof(PreComp)*psi->nsp);
    psi->sPre--;
+
+   /* stream */
+   for(i=1,pre=psi->sPre+1;i<=psi->nsp;i++,pre++) pre->id=-1;
+   if (hset->numSharedStreams>0) {
+      psi->streamShared=TRUE;
+      psi->npp=hset->numSharedStreams;
+      psi->pPre=(PreComp*) New(&psi->heap, sizeof(PreComp)*psi->npp);
+      psi->pPre--;
+      for(i=1,pre=psi->pPre+1;i<=psi->npp;i++,pre++) pre->id=-1;
+   }
+   else
+      psi->streamShared=FALSE,psi->npp=0,psi->pPre=NULL;
+
+   /* mixture */
    for(i=1,pre=psi->sPre+1;i<=psi->nsp;i++,pre++) pre->id=-1;
    if (hset->numSharedMix>0) {
       psi->mixShared=TRUE;
@@ -1517,8 +1676,8 @@ static void LatFromPaths(Path *path,int *ln,Lattice *lat)
    NxtPath tmp,*pth;
    Align *align,*al,*pr;
    MLink ml;
-   LabId labid,splabid,labpr = NULL;
-   char buf[80];
+   LabId labid=NULL,splabid,labpr=NULL;
+   char buf[MAXSTRLEN];
    int i,frame;
    double prlk,dur,like,wp;
 
@@ -1763,7 +1922,7 @@ VRecInfo *InitVRecInfo(PSetInfo *psi,int nToks,Boolean models,Boolean states)
    VRecInfo *vri;
    PreComp *pre;
    int i,n;
-   char name[80];
+   char name[MAXSTRLEN];
    static int prid=0;
 
    vri=(VRecInfo*) New(&gcheap,sizeof(VRecInfo));
@@ -1809,6 +1968,7 @@ VRecInfo *InitVRecInfo(PSetInfo *psi,int nToks,Boolean models,Boolean states)
    pri->psi=psi;
    /* pri->psi->sBuf[1].n=((pri->nToks>1)?1:0);  Needed every observation */
    for(i=1,pre=psi->sPre+1;i<=psi->nsp;i++,pre++) pre->id=-1;
+   for(i=1,pre=psi->pPre+1;i<=psi->npp;i++,pre++) pre->id=-1;
    for(i=1,pre=psi->mPre+1;i<=psi->nmp;i++,pre++) pre->id=-1;
 
    pri->stHeap=(MemHeap *) New(&vri->heap,pri->psi->stHeapNum*sizeof(MemHeap));
@@ -1954,10 +2114,10 @@ void ProcessObservation(VRecInfo *vri,Observation *obs,int id, AdaptXForm *xform
    if (obs->swidth[0]!=pri->psi->hset->swidth[0])
       HError(8571,"ProcessObservation: incompatible number of streams (%d vs %d)",
              obs->swidth[0],pri->psi->hset->swidth[0]);
-   if (pri->psi->mixShared)
+   if (pri->psi->mixShared || pri->psi->streamShared)
       for (j=1;j<=obs->swidth[0];j++)
          if (VectorSize(obs->fv[j])!=pri->psi->hset->swidth[j])
-            HError(8571,"ProcessObservatio: incompatible stream widths for %d (%d vs %d)",
+            HError(8571,"ProcessObservation: incompatible stream widths for %d (%d vs %d)",
                    j,VectorSize(obs->fv[j]),pri->psi->hset->swidth[j]);
 
 
@@ -2375,7 +2535,7 @@ void FormatTranscription(Transcription *trans,HTime frameDur,
    LabList *ll;
    LLink lab;
    HTime end;
-   char buf[MAXSTRLEN],*p,tail[64];
+   char buf[MAXSTRLEN],*p,tail[MAXSTRLEN];
    int lev,j,frames;
    
    if (killScores) {
@@ -2469,4 +2629,4 @@ void FormatTranscription(Transcription *trans,HTime frameDur,
    }
 }
 
-/* ------------------------ End of HRec.c ------------------------- */
+/* ------------------------ End of HRec.c -------------------------- */

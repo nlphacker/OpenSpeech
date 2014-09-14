@@ -19,6 +19,51 @@
 /*         File: HMem.h:   Memory Management Module            */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 /* !HVER!HMem:   3.4.1 [CUED 12/03/09] */
 
 /*
@@ -103,6 +148,11 @@ void InitMem(void);
    routine in this module
 */
 
+void ResetMem(void);
+/* 
+   reset the module 
+*/
+
 void CreateHeap(MemHeap *x, char *name, HeapType type, size_t elemSize, 
                 float growf, size_t numElem,  size_t maxElem);
 /*
@@ -156,11 +206,13 @@ void PrintAllHeapStats(void);
 /* Basic Numeric Types */
 typedef short *ShortVec;   /* short vector[1..size] */
 typedef int   *IntVec;     /* int vector[1..size] */
+typedef int   **IMatrix;   /* int matrix[1...nrows][1...ncols] */
 typedef float *Vector;     /* vector[1..size]   */
 typedef float **Matrix;    /* matrix[1..nrows][1..ncols] */
 typedef Matrix TriMat;     /* matrix[1..nrows][1..i] (lower triangular) */
 typedef double *DVector;   /* double vector[1..size]   */
 typedef double **DMatrix;  /* double matrix[1..nrows][1..ncols] */
+typedef DMatrix DTriMat;   /* double matrix [1..nrows][1..i] (lower triangular) */
 
 /* Shared versions */
 typedef Vector SVector;    /* shared vector[1..size]   */
@@ -206,9 +258,11 @@ void FreeSVector(MemHeap *x,SVector v);
 */
 
 size_t MatrixElemSize(int nrows,int ncols);
+size_t IMatrixElemSize(int nrows,int ncols);
 size_t DMatrixElemSize(int nrows,int ncols);
 size_t SMatrixElemSize(int nrows,int ncols);
 size_t TriMatElemSize(int size);
+size_t DTriMatElemSize(int size);
 size_t STriMatElemSize(int size);
 /* 
    Return elemSize of a Matrix with given number of rows
@@ -217,9 +271,11 @@ size_t STriMatElemSize(int size);
    MHEAP heaps.
 */
 Matrix  CreateMatrix(MemHeap *x,int nrows,int ncols);
+IMatrix CreateIMatrix(MemHeap *x,int nrows,int ncols);
 DMatrix CreateDMatrix(MemHeap *x,int nrows,int ncols);
 SMatrix CreateSMatrix(MemHeap *x,int nrows,int ncols);
 TriMat  CreateTriMat(MemHeap *x,int size);
+DTriMat CreateDTriMat(MemHeap *x,int size);
 STriMat CreateSTriMat(MemHeap *x,int size);
 /*
    Create and return a matrix with nrows rows and ncols columns.
@@ -229,24 +285,30 @@ STriMat CreateSTriMat(MemHeap *x,int size);
 */
 
 Boolean IsTriMat(Matrix m);
+Boolean IsDTriMat(DMatrix m);
 /*
    Return true if m is actually TriMat
 */
 
 int NumRows(Matrix m);
+int NumIRows(IMatrix m);
 int NumDRows(DMatrix m);
 int NumCols(Matrix m);
+int NumICols(IMatrix m);
 int NumDCols(DMatrix m);
 int TriMatSize(TriMat m);
+int DTriMatSize(DTriMat m);
 /*
    Return the number of rows/cols in matrix m.  These can be
    applied to shared variants also.
 */
 
 void FreeMatrix(MemHeap *x,Matrix m);
+void FreeIMatrix(MemHeap *x,IMatrix m);
 void FreeDMatrix(MemHeap *x,DMatrix m);
 void FreeSMatrix(MemHeap *x,SMatrix m);
 void FreeTriMat(MemHeap *x,TriMat m);
+void FreeDTriMat(MemHeap *x,DTriMat m);
 void FreeSTriMat(MemHeap *x,STriMat m);
 /*
    Free the space occupied by matrix m
@@ -292,4 +354,4 @@ char *CopyString(MemHeap *x, char *s);
 
 #endif  /* _HMEM_H_ */
 
-/* -------------------------- End of HMem.h ---------------------------- */
+/* ------------------------ End of HMem.h -------------------------- */

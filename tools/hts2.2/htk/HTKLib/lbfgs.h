@@ -1,33 +1,3 @@
-/* ----------------------------------------------------------- */
-/*                                                             */
-/*                          ___                                */
-/*                       |_| | |_/   SPEECH                    */
-/*                       | | | | \   RECOGNITION               */
-/*                       =========   SOFTWARE                  */ 
-/*                                                             */
-/*                                                             */
-/* ----------------------------------------------------------- */
-/* developed at:                                               */
-/*                                                             */
-/*      Speech Vision and Robotics group                       */
-/*      Cambridge University Engineering Department            */
-/*      http://svr-www.eng.cam.ac.uk/                          */
-/*                                                             */
-/* ----------------------------------------------------------- */
-/*         Copyright:                                          */
-/*                                                             */
-/*              2002  Cambridge University                     */
-/*                    Engineering Department                   */
-/*                                                             */
-/*   Use of this software is governed by a License Agreement   */
-/*    ** See the file License for the Conditions of Use  **    */
-/*    **     This banner notice must not be removed      **    */
-/*                                                             */
-/* ----------------------------------------------------------- */
-/*         File: HExactMPE.h   MPE implementation (exact)      */
-/* ----------------------------------------------------------- */
-
-/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
 /* ----------------------------------------------------------------- */
 /*           The HMM-Based Speech Synthesis System (HTS)             */
 /*           developed by HTS Working Group                          */
@@ -71,24 +41,56 @@
 /* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
 /* POSSIBILITY OF SUCH DAMAGE.                                       */
 /* ----------------------------------------------------------------- */
+/*         File: lbfgs.h: L-BFGS routine                             */
+/* ----------------------------------------------------------------- */
 
-/* !HVER!HExactMPE:   3.4.1 [CUED 12/03/09] */
+/* 
+
+ This L-BFGS FORTRAN source code is originally distributed in
+
+   http://www.ece.northwestern.edu/~nocedal/lbfgs.html
+
+ We thank Prof. Jorge Nocedal of Northwestern University for permission to 
+ redistribute this LBFGS code in the HTS releases.
 
 
-/* A (rather long) routine called from HFBLat.c, relating to the 
-   exact implementation of MPE.
-*/
+ L-BFGS: Software for Large-scale Unconstrained Optimization
    
+   L-BFGS is a limited-memory quasi-Newton code for unconstrained optimization. 
+   The code has been developed at the Optimization Technology Center, a joint 
+   venture of Argonne National Laboratory and Northwestern University.
 
-#define SUPPORT_EXACT_CORRECTNESS
+ Condition for Use: 
 
+   This software is freely available for educational or commercial purposes. We 
+   expect that all publications describing work using this software quote at 
+   least one of the references given below.
 
-void InitExactMPE(void); /* set configs. */
+ References
 
-void ResetExactMPE(void); 
+   * J. Nocedal, "Updating Quasi-Newton Matrices with Limited Storage," 
+     Mathematics of Computation 35, pp. 773-782, 1980.
 
-#ifdef SUPPORT_EXACT_CORRECTNESS
-void DoExactCorrectness(FBLatInfo *fbInfo, Lattice *lat);   
+   * D.C. Liu and J. Nocedal, "On the Limited Memory BFGS Method for Large Scale 
+     Optimization," Mathematical Programming B, 45, 3, pp. 503-528, 1989.
+
+*/
+
+#ifndef _LBFGS_H_
+#define _LBFGS_H_
+
+#ifdef __cplusplus
+extern "C" {
+#endif 
+
+void lbfgs_(int* n, int* m, double* x, double* f, double* g,
+            int* diagco, double* diag, int* iprint, double* eps,
+            double* xtol, double* w, int* iflag);
+
+#ifdef __cplusplus
+}
 #endif
 
-/* ------------------------ End of HExtractMPE.h ------------------- */
+#endif  /* _LBFGS_H_ */
+
+/* ------------------------ End of lbfgs.h ------------------------- */

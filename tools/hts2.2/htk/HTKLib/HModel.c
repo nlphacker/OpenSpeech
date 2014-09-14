@@ -32,8 +32,53 @@
 /*         File: HModel.c  HMM Model Definition Data Type      */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hmodel_version = "!HVER!HModel:   3.4.1 [CUED 12/03/09]";
-char *hmodel_vc_id = "$Id: HModel.c,v 1.2 2006/12/07 11:09:08 mjfg Exp $";
+char *hmodel_vc_id = "$Id: HModel.c,v 1.42 2011/06/16 05:07:56 bonanza Exp $";
 
 #include "HShell.h"
 #include "HMem.h"
@@ -68,8 +113,6 @@ static int trace = 0;
 
 /* ------------------ Input XForm directory info ------------------- */
 
-typedef struct _XFDirInfo *XFDirLink;
-
 typedef struct _XFDirInfo {
   char *dirName;           /* input XForm directory name */
   XFDirLink next;          /* next directory name in list */
@@ -92,10 +135,7 @@ static Boolean reorderComps=FALSE;      /* re-order mixture components (PDE) */
 
 static Boolean allowOthers=TRUE;        /* allow unseen models in files */
 static HSetKind cfHSKind;
-static char orphanMacFile[100];         /* last resort file for new macros */
-
-static XFDirLink xformDirNames = NULL;  /* linked list of input transform directories */
-static Boolean indexSet = FALSE;        /* have the indexes been set for the model set */
+static char orphanMacFile[MAXSTRLEN];   /* last resort file for new macros */
 
 static MemHeap xformStack;              /* For Storage of xforms with no model sets ... */
 
@@ -109,6 +149,8 @@ static int nGaussTot = 0;
 static int nGaussPDE1 = 0;
 static int nGaussPDE2 = 0;
 #endif
+
+static float ignoreValue = LZERO;      /* ignore value for multi-space distribution */
 
 void InitSymNames(void);
 
@@ -152,28 +194,38 @@ void InitModel(void)
       if (GetConfInt(cParm,nParm,"PDE2BLOCKEND",&i)) pde2BlockEnd = i;
       if (GetConfFlt(cParm,nParm,"PDETHRESHOLD1",&d)) pdeTh1 = d;
       if (GetConfFlt(cParm,nParm,"PDETHRESHOLD2",&d)) pdeTh2 = d;
+      if (GetConfFlt(cParm,nParm,"IGNOREVALUE",&d)) ignoreValue = d;
    }
+}
+
+/* EXPORT->ResetModel: reset module */
+void ResetModel (void)
+{
+   ResetHeap(&xformStack);
+   
+   return;
 }
 
 /* -------------------- Check Model Consistency -------------------- */
 
 /* CheckMix: check given mixture pdf of state n, stream s, mixture m */
-static ReturnStatus CheckMix(char *defName, MixPDF *mp, int n, int s, int m, int sw)
+static ReturnStatus CheckMix(char *defName, MixPDF *mp, int n, int s, int m, int sw, int mf)
 {  
    if (trace&T_CHK) {
       printf("HModel:       checking mix %d\n",m);  fflush(stdout);
    }
-   if (mp->mean == NULL){
+   if (!mf && mp->mean == NULL) {
       HRError(7030,"CheckMix: %s: pdf for s=%d,j=%d,m=%d has NULL mean",
               defName,n,s,m);
       return(FAIL);
    }
-   if (VectorSize(mp->mean) != sw){
+   if ((!mf && VectorSize(mp->mean) != sw)
+       || (mf && VectorSize(mp->mean) > sw)) {
       HRError(7030,"CheckMix: %s: mean for s=%d,j=%d,m=%d has bad vecSize",
               defName,n,s,m);
       return(FAIL);
    }
-   if (mp->cov.var == NULL){
+   if (!mf && mp->cov.var == NULL) {
       HRError(7030,"CheckMix: %s: pdf for s=%d,j=%d,m=%d has NULL covariance",
               defName,n,s,m);
       return(FAIL);
@@ -181,7 +233,7 @@ static ReturnStatus CheckMix(char *defName, MixPDF *mp, int n, int s, int m, int
    
    switch(mp->ckind){
    case DIAGC:
-      if (VectorSize(mp->cov.var) != sw){
+      if (!mf && VectorSize(mp->cov.var) != sw) {
          HRError(7030,"CheckMix: %s: var for s=%d,j=%d,m=%d has bad vecSize",
                  defName,n,s,m);
          return(FAIL);
@@ -189,14 +241,14 @@ static ReturnStatus CheckMix(char *defName, MixPDF *mp, int n, int s, int m, int
       break;
    case FULLC:
    case LLTC:
-      if (TriMatSize(mp->cov.inv) != sw){
+      if (!mf && TriMatSize(mp->cov.inv) != sw) {
          HRError(7030,"CheckMix: %s: inv for s=%d,j=%d,m=%d has bad dimens",
                  defName,n,s,m);
          return(FAIL);
       }
       break;
    case XFORMC:
-      if (NumCols(mp->cov.xform) != sw){
+      if (!mf && NumCols(mp->cov.xform) != sw) {
          HRError(7030,"CheckMix: %s: xform for s=%d,j=%d,m=%d has bad dimens",
                  defName,n,s,m);
          return(FAIL);
@@ -218,26 +270,28 @@ static ReturnStatus CheckMix(char *defName, MixPDF *mp, int n, int s, int m, int
 }
 
 /* CheckStream: check the stream s for state n */
-static ReturnStatus CheckStream(char *defName, HLink hmm, StreamElem *se, int s, int n)
+static ReturnStatus CheckStream(char *defName, HLink hmm, StreamInfo *sti, int s, int n)
 {
    double sum=0.0;
-   int m,sw;
+   int m,sw,mf;
    LogFloat wt;
    MixtureElem *me;
    MixPDF *mp;
    HSetKind  hk;
    
    if (trace&T_CHK) {
-      printf("HModel:    checking stream %d, se=%p\n",s,se); 
+      printf("HModel:    checking stream %d, se=%p\n",s,sti); 
       fflush(stdout);
    }
    hk = hmm->owner->hsKind;
    sw = hmm->owner->swidth[s];
+   mf = hmm->owner->msdflag[s];
+
    switch(hk){
    case PLAINHS:
    case SHAREDHS:
-      me = se->spdf.cpdf+1;
-      for (m=1; m<=se->nMix; m++,me++){
+      me = sti->spdf.cpdf+1;
+      for (m=1; m<=sti->nMix; m++,me++){
          wt=me->weight; wt = MixWeight(hmm->owner,wt);
          sum += wt;
          if (wt > MINMIX ){
@@ -247,18 +301,18 @@ static ReturnStatus CheckStream(char *defName, HLink hmm, StreamElem *se, int s,
                return(FAIL);
             }
             mp = me->mpdf;
-            if((!IsSeen(mp->nUse))&&(CheckMix(defName,me->mpdf,n,s,m,sw)<SUCCESS))
+            if((!IsSeen(mp->nUse))&&(CheckMix(defName,me->mpdf,n,s,m,sw,mf)<SUCCESS))
                return(FAIL);
          }
       }
       break;
    case TIEDHS:
-      for (m=1; m<=se->nMix; m++)
-         sum += se->spdf.tpdf[m];
+      for (m=1; m<=sti->nMix; m++)
+         sum += sti->spdf.tpdf[m];
       break;
    case DISCRETEHS:
-      for (m=1; m<=se->nMix; m++)
-         sum += exp((float)se->spdf.dpdf[m]/DLOGSCALE);
+      for (m=1; m<=sti->nMix; m++)
+         sum += exp((float)sti->spdf.dpdf[m]/DLOGSCALE);
       break;
    }
    if (sum<0.99 || sum>1.01){
@@ -266,6 +320,7 @@ static ReturnStatus CheckStream(char *defName, HLink hmm, StreamElem *se, int s,
               defName,sum,s,n);
       return(FAIL);
    }
+   Touch(&sti->nUse);
    return(SUCCESS);
 }
 
@@ -274,6 +329,7 @@ static ReturnStatus CheckState(char *defName, HLink hmm, StateInfo *si, int n)
 {
    int s,S;
    StreamElem *ste;
+   StreamInfo *sti;
    
    if (trace&T_CHK) {
       printf("HModel:  checking state %d, si=%p\n",n,si); fflush(stdout);
@@ -285,11 +341,12 @@ static ReturnStatus CheckState(char *defName, HLink hmm, StateInfo *si, int n)
    }
    ste = si->pdf+1;
    for (s=1; s<=S; s++,ste++){
-      if (ste->spdf.cpdf == NULL){
+      sti = ste->info;
+      if (sti->spdf.cpdf == NULL){
          HRError(7030,"CheckState: %s: Stream %d missing in state %d",defName,s,n);
          return(FAIL);
       }
-      if(CheckStream(defName,hmm,ste,s,n)<SUCCESS)
+      if((!IsSeen(sti->nUse))&&(CheckStream(defName,hmm,sti,s,n)<SUCCESS))
          return(FAIL);
    }
    if (S>1)
@@ -323,10 +380,10 @@ static ReturnStatus CheckHMM(char *defName, HLink hmm)
    return(SUCCESS);
 }
 
-/* CheckTMRecs: check the tied mix codebook attached to a HMM Set */
+/* CheckTMRecs: check the tied mix codebook attached to an HMM Set */
 static ReturnStatus CheckTMRecs(HMMSet *hset)
 {
-   int s,m,sw;
+   int s,m,sw,mf;
    MixPDF *mp;
    
    if (trace&T_CHK) {
@@ -334,6 +391,7 @@ static ReturnStatus CheckTMRecs(HMMSet *hset)
    }
    for (s=1;s<=hset->swidth[0]; s++){
       sw = hset->swidth[s];
+      mf = hset->msdflag[s];
       if (hset->tmRecs[s].mixId == NULL){
          HRError(7030,"CheckTMRecs: no mix id set in stream %d",s);
          return(FAIL);
@@ -344,7 +402,7 @@ static ReturnStatus CheckTMRecs(HMMSet *hset)
       }
       for (m=1; m<=hset->tmRecs[s].nMix; m++){
          mp = hset->tmRecs[s].mixes[m];
-         if(CheckMix("TMRec",mp,0,s,m,sw)<SUCCESS)
+         if(CheckMix("TMRec",mp,0,s,m,sw,mf)<SUCCESS)
             return(FAIL);
       }
    }
@@ -365,8 +423,8 @@ static ReturnStatus CheckDiscrete(HMMSet *hset)
    return (SUCCESS);
 }
 
-/* CheckHSet: check the consistency of a complete HMM Set */
-static ReturnStatus CheckHSet(HMMSet *hset)
+/* EXPORT->CheckHSet: check the consistency of a complete HMM Set */
+ReturnStatus CheckHSet(HMMSet *hset)
 {
    int h;
    MLink m;
@@ -393,7 +451,7 @@ static ReturnStatus CheckHSet(HMMSet *hset)
 /* Internal and binary keyword representation */
 typedef enum {   /* Only a character big !! */
    BEGINHMM, USEMAC, ENDHMM, NUMMIXES, 
-   NUMSTATES, STREAMINFO, VECSIZE, 
+   NUMSTATES, STREAMINFO, VECSIZE, MSDINFO, 
    NDUR, PDUR, GDUR, RELDUR, GENDUR,
    DIAGCOV,  FULLCOV, XFORMCOV,
    STATE, TMIX, MIXTURE, STREAM, SWEIGHTS,
@@ -418,7 +476,7 @@ static struct {
    { { "BEGINHMM", BEGINHMM }, { "USE", USEMAC }, 
      { "ENDHMM", ENDHMM }, { "NUMMIXES", NUMMIXES }, 
      { "NUMSTATES", NUMSTATES }, { "STREAMINFO", STREAMINFO }, 
-     { "VECSIZE", VECSIZE }, { "NULLD", NDUR }, 
+     { "VECSIZE", VECSIZE }, { "MSDINFO", MSDINFO }, { "NULLD", NDUR }, 
      { "POISSOND", PDUR }, { "GAMMAD", GDUR }, 
      { "RELD", RELDUR }, { "GEND", GENDUR }, 
      { "DIAGC", DIAGCOV }, {  "FULLC", FULLCOV }, 
@@ -485,7 +543,7 @@ static void TermScanner(Source *src)
    CloseSource(src);
 }
 
-/* HMError: report a HMM definition error */
+/* HMError: report an HMM definition error */
 static void HMError(Source *src, char *message)
 {
    char buf[MAXSTRLEN];
@@ -515,7 +573,7 @@ static ReturnStatus GetToken(Source *src, Token *tok)
    if (c == '~'){                    /* If macro sym return immediately */
       c = tolower(GetCh(src));
       if (c!='s' && c!='m' && c!='u' && c!='x' && c!='d' && c!='c' &&
-          c!='r' && c!='a' && c!='b' && c!='g' && c!='f' && c!='y' && c!='j' &&
+          c!='r' && c!='a' && c!='b' && c!='g' && c!='f' && c!='y' && c!='j' && c!='p' &&
           c!='v' && c!='i' && c!='t' && c!='w' && c!='h' && c!='o')
          {
             HMError(src,"GetToken: Illegal macro type");
@@ -596,12 +654,12 @@ static void OWarn(HMMSet *hset,Boolean equal,char *opt)
       HRError(-7032,"OWarn: change HMM Set %s",opt);
 }
 
-/* GetOption: read a HMM option specifier - value set in nState pointer */
+/* GetOption: read an HMM option specifier - value set in nState pointer */
 static ReturnStatus GetOption(HMMSet *hset, Source *src, Token *tok, int *nState)
 {
    DurKind dk;
    char buf[MAXSTRLEN];
-   short vs,sw[SMAX],nSt=0;
+   short vs,sw[SMAX],mf[SMAX],nSt=0;
    int i;
    Boolean ntok=TRUE;
 
@@ -616,7 +674,7 @@ static ReturnStatus GetOption(HMMSet *hset, Source *src, Token *tok, int *nState
       *nState=nSt;
       break;
    case PARMKIND:    
-      OWarn(hset,hset->pkind==tok->pkind,"parmKind");
+      OWarn(hset,((hset->pkind==tok->pkind) ? TRUE:FALSE),"parmKind");
       hset->pkind = tok->pkind;
       break;
    case NDUR:
@@ -625,7 +683,7 @@ static ReturnStatus GetOption(HMMSet *hset, Source *src, Token *tok, int *nState
    case RELDUR:
    case GENDUR:
       dk = (DurKind) (NULLD + (tok->sym-NDUR));
-      OWarn(hset,hset->dkind==dk,"durKind");
+      OWarn(hset,((hset->dkind==dk) ? TRUE:FALSE),"durKind");
       hset->dkind = dk; 
       break;
    case HMMSETID:
@@ -672,15 +730,31 @@ static ReturnStatus GetOption(HMMSet *hset, Source *src, Token *tok, int *nState
          HMError(src,"Vector Size Expected");
          return(FAIL);
       }
-      OWarn(hset,hset->vecSize==vs,"vecSize");
+      OWarn(hset,((hset->vecSize==vs) ? TRUE:FALSE),"vecSize");
       hset->vecSize = vs;
+      break;
+   case MSDINFO:
+      if (!ReadShort(src,mf,1,tok->binForm)) {
+         HMError(src,"Num Streams Expected");
+         return(FAIL);
+      }
+      if (mf[0] >= SMAX) {
+         HMError(src,"Stream limit exceeded");
+         return(FAIL);
+      }
+      if (!ReadShort(src,mf+1,mf[0],tok->binForm)) {
+         HMError(src,"MSD flag Expected");
+         return(FAIL);
+      }
+      OWarn(hset,((hset->msdflag[0]==mf[0]) ? TRUE:FALSE),"msdflag[0]");       
+      for (i=0; i<=mf[0]; i++) hset->msdflag[i] = mf[i];
       break;
    case PROJSIZE:
       if (!ReadShort(src,&vs,1,tok->binForm)){
          HMError(src,"Projection vector Size Expected");
          return(FAIL);
       }
-      OWarn(hset,hset->projSize==vs,"projSize");
+      OWarn(hset,((hset->projSize==vs) ? TRUE:FALSE),"projSize");
       hset->projSize = vs;
       break;
    case STREAMINFO:
@@ -696,27 +770,27 @@ static ReturnStatus GetOption(HMMSet *hset, Source *src, Token *tok, int *nState
          HMError(src,"Stream Widths Expected");
          return(FAIL);
       }
-      OWarn(hset,hset->swidth[0]==sw[0],"swidth[0]");       
+      OWarn(hset,((hset->swidth[0]==sw[0]) ? TRUE:FALSE),"swidth[0]");       
       for (i=0; i<=sw[0]; i++) hset->swidth[i] = sw[i];
       break;
    case DIAGCOV:
-      OWarn(hset,hset->ckind==DIAGC,"covKind");
+      OWarn(hset,((hset->ckind==DIAGC) ? TRUE:FALSE),"covKind");
       hset->ckind = DIAGC; 
       break;
    case FULLCOV:
-      OWarn(hset,hset->ckind==FULLC,"covKind");
+      OWarn(hset,((hset->ckind==FULLC) ? TRUE:FALSE),"covKind");
       hset->ckind = FULLC; 
       break;
    case XFORMCOV:
-      OWarn(hset,hset->ckind==XFORMC,"covKind");
+      OWarn(hset,((hset->ckind==XFORMC) ? TRUE:FALSE),"covKind");
       hset->ckind = XFORMC; 
       break;
    case INVDIAGCOV:
-      OWarn(hset,hset->ckind==INVDIAGC,"covKind");
+      OWarn(hset,((hset->ckind==INVDIAGC) ? TRUE:FALSE),"covKind");
       hset->ckind = INVDIAGC; 
       break;
    case LLTCOV:
-      OWarn(hset,hset->ckind==LLTC,"covKind");
+      OWarn(hset,((hset->ckind==LLTC) ? TRUE:FALSE),"covKind");
       hset->ckind = LLTC; 
       break;
    default: 
@@ -738,9 +812,11 @@ static ReturnStatus FreezeOptions(HMMSet *hset)
    
    if (hset->optSet) return(SUCCESS);
    if (hset->vecSize == 0) {
-      if (hset->swidth[0] > 0 && hset->swidth[1] > 0)
+      /* set vecSize according to <StreamInfo> */
+      if (hset->swidth[0] > 0 && hset->swidth[1] > 0) {
          for (i=1; i<=hset->swidth[0]; i++)
             hset->vecSize += hset->swidth[i];
+      }
       else{
          HRError(7032,"FreezeOptions: vecSize not set");
          return(FAIL);
@@ -754,6 +830,10 @@ static ReturnStatus FreezeOptions(HMMSet *hset)
    if (hset->swidth[0] == 0) {
       hset->swidth[0] = 1; hset->swidth[1] = hset->vecSize;
    }
+   if (hset->msdflag[0] == 0) {
+      hset->msdflag[0] = hset->swidth[0];
+      for (i=1; i<=hset->swidth[0]; i++) hset->msdflag[i] = 0;
+   }
    if (hset->pkind == 0){
       HRError(7032,"FreezeOptions: parmKind not set");
       return(FAIL);
@@ -765,6 +845,16 @@ static ReturnStatus FreezeOptions(HMMSet *hset)
 /* CheckOptions: check that options are set in given HMM set */
 static ReturnStatus CheckOptions(HMMSet *hset)
 {
+   int i, vecSize;
+   
+   if (hset->vecSize!=0 && hset->swidth[0]>0) {
+      /* check consistency between <VecSize> and <StreamInfo> */
+      for (i=1,vecSize=0; i<=hset->swidth[0]; vecSize+=hset->swidth[i++]);
+      if (vecSize != hset->vecSize) {
+         HRError(7032,"CheckOptions: inconsistent vecSize between <VecSize> (%d) and <StreamInfo> (%d)", hset->vecSize, vecSize);
+         return(FAIL);
+      }
+   }      
    if (!hset->optSet){
       HRError(7032,"CheckOptions: options not set in HMM Set");
       return(FAIL);
@@ -819,10 +909,10 @@ void AddInXFormDir(HMMSet *hset, char *dirname)
   p = (XFDirLink)New(hset->hmem,sizeof(XFDirInfo));
   p->next = NULL;
   p->dirName = CopyString(hset->hmem,dirname);
-  if (xformDirNames == NULL)
-    xformDirNames = p;
+  if (hset->xformDirNames == NULL)
+    hset->xformDirNames = p;
   else {  /* store in order of arrival */
-    for (q=xformDirNames; q->next != NULL; q=q->next);
+    for (q=hset->xformDirNames; q->next != NULL; q=q->next);
     q->next = p;
   }
 }
@@ -1003,7 +1093,7 @@ ReturnStatus GetTiedMixtures(HMMSet *hset, Source *src, Token *tok,
       return(FAIL);
    }
    id = GetLabId(tmName,TRUE);
-   isNew = hset->tmRecs[s].mixId == NULL;
+   isNew = (hset->tmRecs[s].mixId == NULL) ? TRUE:FALSE;
    if (isNew) {
       InitTMixRecs(hset,s,M);
       hset->tmRecs[s].mixId = id;
@@ -1108,14 +1198,14 @@ static ReturnStatus CheckBaseClass(HMMSet *hset, BaseClass *bclass)
 	mp->mIdx = -mp->mIdx;
 	ncomp++;
       } else { /* item appears in list multiple times */
-	HRError(999,"Component specified multiple times");  
+        HRError(999,"CheckBaseClass: Component specified multiple times");  
 	return(FAIL);
       }
     }
   }
   /* have all the components been seen? */
   if (ncomp != hset->numMix) {
-    HRError(999,"Components missing from Base Class list (%d %d)",ncomp,hset->numMix);
+    HRError(999,"CheckBaseClass: Components missing from Base Class list (%d %d)",ncomp,hset->numMix);
     return(FAIL);
   }
   /* mIdx is used in HRec, so reset */
@@ -1124,7 +1214,7 @@ static ReturnStatus CheckBaseClass(HMMSet *hset, BaseClass *bclass)
       mp = ((MixtureElem *)i->item)->mpdf;
       if (mp->mIdx<0) mp->mIdx = -mp->mIdx;
       else 
-	HError(999,"CompressItemList: corrupted item list");
+        HError(999,"CheckBaseClass: corrupted item list");
     }
   }
   return(SUCCESS);
@@ -1174,6 +1264,38 @@ static void CompressItemList(MemHeap *x, ILink ilist, ILink *bilist)
     printf(" CompressItemList: kept %d components, deleted %d components\n",ncomp,ndel);
 }
 
+static int GetStreamClass(BaseClass *bclass, const int b)
+{
+   int j,s,m;
+   ILink i;
+   MixtureElem *me;
+   StreamInfo *sti;
+   HLink hmm;
+   
+   /* currently does not check consistency of stream indexes */
+   if ((i=bclass->ilist[b])==NULL) {
+      HError(-999,"GetStreamClass: class %d has no items",b);
+      return 1;
+   }
+   
+   me  = (MixtureElem *)i->item;
+   hmm = i->owner;
+   
+   /* search MixtureElem which matches me */
+   for (j=2; j<hmm->numStates; j++) { 
+      for (s=1; s<=bclass->swidth[0]; s++) {
+         sti = hmm->svec[j].info->pdf[s].info;
+         for (m=1; m<=sti->nMix; m++) {
+            if (sti->spdf.cpdf+m == me)
+               return s;
+         } 
+      }
+   }
+   HError(999,"GetStreamClass: cannot find stream of given class");
+   
+   return 1;
+}
+
 static BaseClass* GetBaseClass(HMMSet *hset,Source *src, Token *tok)
 {
   BaseClass *bclass;
@@ -1182,6 +1304,9 @@ static BaseClass* GetBaseClass(HMMSet *hset,Source *src, Token *tok)
   int nbases, i, b;
   ILink ilist;
 
+  const int maxM = MaxMixInSet(hset);
+  const int maxS = MaxStatesInSet(hset);
+   
   void SetIndexes(HMMSet *hset);
 
   if (trace&T_PAR) printf("HModel: GetBaseClass\n");
@@ -1235,7 +1360,10 @@ static BaseClass* GetBaseClass(HMMSet *hset,Source *src, Token *tok)
     } else {
       if (hset->swidth[0] != 1)
 	HError(999,"<STREAMINFO> must be specified in multiple stream base classes");
-      bclass->swidth = NULL; /* indicates a single stream - don't care */
+
+        bclass->swidth = CreateIntVec(hset->hmem,2);
+        bclass->swidth[0] = 1;
+        bclass->swidth[1] = hset->vecSize;
     }
     if (tok->sym == NUMCLASSES) {
       if (!ReadInt(src,&nbases,1,tok->binForm)){
@@ -1254,7 +1382,7 @@ static BaseClass* GetBaseClass(HMMSet *hset,Source *src, Token *tok)
     bclass->ilist = (ILink *)New(hset->hmem,sizeof(ILink)*(nbases+1));
     /* Set the indexes for the models - just in case being loaded from 
        a macro */
-    if (!indexSet) SetIndexes(hset);
+    if (!hset->indexSet) SetIndexes(hset);
     /* BaseClasses Can only refer to physical HMMs for wild cards */
     SetParsePhysicalHMM(TRUE);
     for (i=1;i<=nbases;i++) {
@@ -1269,7 +1397,7 @@ static BaseClass* GetBaseClass(HMMSet *hset,Source *src, Token *tok)
       if (b!=i)
 	HError(999,"Error reading classes in BaseClass");
       ilist= NULL; bclass->ilist[i] = NULL;
-      PItemList(&ilist,&type,hset,src,(trace&T_PAR));
+      PItemList(&ilist,&type,hset,src,NULL,maxM,maxS,((trace&T_PAR) ? TRUE:FALSE));
       CompressItemList(hset->hmem,ilist,bclass->ilist+i);
       ResetUtilItemList();
       /* multiple examples of the same component may be specified */
@@ -1282,6 +1410,12 @@ static BaseClass* GetBaseClass(HMMSet *hset,Source *src, Token *tok)
     if (CheckBaseClass(hset,bclass)<SUCCESS)
       HError(999,"BaseClass check failed");
     bclass->nUse = 0;
+
+    /* set stream index to each base class */
+    bclass->stream = CreateIntVec(hset->hmem,bclass->numClasses);
+    for (b=1; b<=bclass->numClasses; b++)
+      bclass->stream[b] = GetStreamClass(bclass,b);
+
   } else if (tok->sym==MACRO && tok->macroType=='b'){
     if((bclass=(BaseClass *)GetStructure(hset,src,'b'))==NULL){
       HMError(src,"GetStructure Failed");
@@ -1301,17 +1435,18 @@ static BaseClass* GetBaseClass(HMMSet *hset,Source *src, Token *tok)
 
 
 /* Find a node in the regression tree given the index and return the node */
-static RegNode *FindNode(RegNode *n, RegNode *r, int id)
+static RegNode *FindNode(RegTree *rtree, const int id)
 {
-  int i;
+   ILink i;
+   RegNode *r;
 
-  if (n != NULL) {
-    if (n->nodeIndex == id)
-      return n;
-    for (i=1;i<=n->numChild;i++) 
-      r = FindNode(n->child[i], r, id);
-  }
+   for (i=rtree->nodes; i!=NULL; i=i->next) {
+      r = (RegNode *) i->item;
+      if (r->nodeIndex==id)
   return r;
+}
+
+   return NULL;
 }
 
 static RegNode *CreateRegNode(MemHeap *m, int nodeId)
@@ -1325,7 +1460,10 @@ static RegNode *CreateRegNode(MemHeap *m, int nodeId)
    n->child = NULL;
    n->baseClasses = NULL;
    n->info = NULL;
-   n->vsize = 0;
+   n->vsize = -1;
+   n->stream = -1;
+   n->valid = TRUE;
+
    return n;
 }
 
@@ -1368,6 +1506,9 @@ static RegTree *GetRegTree(HMMSet *hset, Source *src, Token *tok)
 	   rtree->valid = FALSE;
      }
      rtree->root = root = CreateRegNode(hset->hmem,1);
+     rtree->numNodes = rtree->numTNodes = 0;
+     rtree->nodes = NULL;
+     AddItem(NULL,root,&rtree->nodes);
      while ((tok->sym != EOFSYM) && 
 	    ((tok->sym==NODE) || (tok->sym==TNODE))) {
        switch(tok->sym) {
@@ -1376,7 +1517,7 @@ static RegTree *GetRegTree(HMMSet *hset, Source *src, Token *tok)
 	   HMError(src,"Node index for regression tree expected");
 	   return(NULL);
 	 }
-	 if ((rnode = FindNode(root, NULL, index)) == NULL)
+         if ((rnode = FindNode(rtree, index)) == NULL)
 	   HError(999,"Nodes are expected in numerical order");
 	 rtree->numNodes ++;
 	 if (!ReadInt(src,&nchild,1,tok->binForm)){
@@ -1391,6 +1532,7 @@ static RegTree *GetRegTree(HMMSet *hset, Source *src, Token *tok)
 	     return(NULL);
 	   }
 	   rnode->child[i] = CreateRegNode(hset->hmem,index);
+           AddItem(NULL,rnode->child[i],&rtree->nodes);
 	 }
 	 break;
        case TNODE:
@@ -1398,7 +1540,7 @@ static RegTree *GetRegTree(HMMSet *hset, Source *src, Token *tok)
 	   HMError(src,"Node index for regression tree expected");
 	   return(NULL);
 	 }
-	 if ((rnode = FindNode(root, NULL, index)) == NULL)
+         if ((rnode = FindNode(rtree, index)) == NULL)
 	   HError(999,"Nodes are expected in numerical order");
 	 rtree->numTNodes ++;
 	 if (!ReadInt(src,&nbases,1,tok->binForm)){
@@ -1423,6 +1565,7 @@ static RegTree *GetRegTree(HMMSet *hset, Source *src, Token *tok)
 	 return(NULL);
        }
      }
+     FreeItems(&rtree->nodes);
    } else 
      HMError(src,"Regression Tree definition expected");     
    return rtree; 
@@ -1441,10 +1584,15 @@ static SVector GetMean(HMMSet *hset, Source *src, Token *tok)
          HMError(src,"Size of Mean Vector expected");
          return(NULL);
       }
+      if (size > 0) {
       m = CreateSVector(hset->hmem,size);
       if (!ReadVector(src,m,tok->binForm)){
          HMError(src,"Mean Vector expected");
          return(NULL);
+      }
+   }
+      else if (size == 0) {
+         m = CreateSVector(hset->hmem,0);
       }
    }
    
@@ -1477,10 +1625,15 @@ static SVector GetVariance(HMMSet *hset, Source *src, Token *tok)
          HMError(src,"Size of Variance Vector expected");
          return(NULL);
       }
+      if (size > 0) {
       v = CreateSVector(hset->hmem,size);
       if (!ReadVector(src,v,tok->binForm)){
          HMError(src,"Variance Vector expected");
          return(NULL);
+      }
+   }
+      else if (size == 0) {
+         v = CreateSVector(hset->hmem,0);
       }
    }
    
@@ -1665,6 +1818,7 @@ static MixPDF *GetMixPDF(HMMSet *hset, Source *src, Token *tok)
       mp = (MixPDF *)New(hset->hmem,sizeof(MixPDF));
       mp->nUse = 0; mp->hook = NULL; mp->gConst = LZERO;
       mp->mIdx = 0; mp->stream = 0; mp->vFloor = NULL; mp->info = NULL;
+      mp->cov.var = NULL;  mp->cov.inv = NULL; mp->cov.xform = NULL; mp->ckind = NULLC;
       if((mp->mean = GetMean(hset,src,tok))==NULL){      
          HMError(src,"GetMean Failed");
          return(NULL);
@@ -1803,15 +1957,10 @@ static ReturnStatus GetMixture(HMMSet *hset,Source *src,Token *tok,int M,Mixture
 /* CreateSE: create an array of S StreamElems */
 static StreamElem *CreateSE(HMMSet *hset, int S)
 {
-   int s;
-   StreamElem *se,*p;
+   StreamElem *ste,*p;
    
-   se = (StreamElem *)New(hset->hmem,S*sizeof(StreamElem));
-   p = se-1;
-   for (s=1;s<=S;s++,se++){
-      se->hook = NULL;
-      se->spdf.cpdf = NULL;
-   }
+   ste = (StreamElem *)New(hset->hmem,S*sizeof(StreamElem));
+   p = ste-1;
    return p;
 }
 
@@ -1846,20 +1995,117 @@ static MixPDF *EmptyMixPDF(HMMSet *hset, int vSize, int s)
    return t[s];
 }
 
+/* GetStreamInfo: parse src and store a StreamInfo in StreamElement */
+static StreamInfo *GetStreamInfo(HMMSet *hset, Source *src, Token *tok, int s)
+{
+   StreamInfo *sti;
+   MixtureElem *cpdf;
+   int m;
+  
+   if (tok->sym == MACRO && tok->macroType == 'p') {
+      if ((sti = (StreamInfo *)GetStructure(hset,src,'p')) ==NULL) {
+         HMError(src,"Get Stream Info failed");
+         return(NULL);
+   }
+      ++sti->nUse;
+      if (GetToken(src,tok)<SUCCESS) {
+         HMError(src,"Get Token failed");
+         return(NULL);
+      }
+   }
+   else {
+      sti = (StreamInfo *)New(hset->hmem,sizeof(StreamInfo));
+      sti->nUse = 0;
+      sti->hook = NULL;
+      sti->spdf.cpdf = NULL;
+      sti->pIdx = 0;
+      if (tok->sym == STREAM) {
+         if (!ReadShort(src,&sti->stream,1,tok->binForm)) {
+            HMError(src,"Stream index in expected");
+            return(NULL);
+      }
+      if(GetToken(src,tok)<SUCCESS){
+         HMError(src,"GetToken failed");
+            return(NULL);
+      }
+   }
+      else 
+         sti->stream = s;
+      
+      /* Number of Mixture components */
+      if (tok->sym == NUMMIXES) {
+         if (!ReadInt(src,&sti->nMix,1,tok->binForm)) {
+            HMError(src,"Num Mix in Shared Stream expected");
+            return(NULL);
+         }
+         if (GetToken(src,tok)<SUCCESS) {
+            HMError(src,"GetToken failed");
+            return(NULL);
+         }
+      } else 
+         sti->nMix=1;
+
+      if (tok->sym == TMIX ) {    /* Tied Mixture */
+      if (hset->hsKind == PLAINHS)
+         hset->hsKind = TIEDHS;
+      else 
+         if (hset->hsKind != TIEDHS){
+            HRError(7032,"GetStream: change to TIEDHS from other than PLAINHS");
+               return(NULL);
+         }
+         sti->spdf.tpdf = CreateTME(hset,sti->nMix);
+
+         if ((GetTiedMixtures(hset,src,tok,sti->nMix,s,sti->spdf.tpdf))<SUCCESS) {
+         HMError(src,"GetTiedMixtures failed");
+            return(NULL);
+      }
+   } 
+      else     /* Discrete */
+      if (tok->sym == DPROB) {
+         if (hset->hsKind == PLAINHS)
+            hset->hsKind = DISCRETEHS;
+         else if (hset->hsKind != DISCRETEHS){
+            HRError(7032,"GetStream: change to DISCRETEHS from other than PLAINHS");
+               return(NULL);
+         }
+         sti->spdf.dpdf = CreateDME(hset,sti->nMix);
+         if ((GetDiscreteWeights(src,tok,sti->nMix,sti->spdf.dpdf))<SUCCESS) {
+            HMError(src,"GetDiscreteWeights failed");
+            return(NULL);
+         }
+      } else {  /* PLAIN/SHARED Mixtures */
+         cpdf = sti->spdf.cpdf = CreateCME(hset,sti->nMix);
+         if ((GetMixture(hset,src,tok,sti->nMix,cpdf))<SUCCESS) {
+            HMError(src,"GetMixtures failed");
+            return(NULL);
+         }
+         while (tok->sym==MIXTURE)
+            if ((GetMixture(hset,src,tok,sti->nMix,cpdf))<SUCCESS) {
+               HMError(src,"GetMixtures failed");
+               return(NULL);
+            }
+         for (m=1; m<=sti->nMix; m++)
+            if (cpdf[m].mpdf == NULL){
+               if ((cpdf[m].mpdf = EmptyMixPDF(hset,hset->swidth[sti->stream],sti->stream))==NULL) {
+                  HMError(src,"EmptyMixPDF failed");
+                  return(NULL);
+               }
+               cpdf[m].weight = 0.0;
+            }
+      }
+   }
+   return sti;
+}
+
+
 /* GetStream: parse src and store a StreamElem in pdf array */
 static ReturnStatus GetStream(HMMSet *hset, Source *src, Token *tok,
-                              StreamElem *pdf, short *nMix)
+                              StreamElem *ste)
 {
-   int m,S,M;
+   int S;
    short s;
-   MixtureElem *cpdf;
   
    S=hset->swidth[0];
-   if (trace&T_PAR) {
-      printf("HModel: GetStream - nMix =");
-      for (s=1; s<=S; s++) printf(" %d",nMix[s]);
-      printf("\n");
-   }
    s = 1;
    if (tok->sym == STREAM) {
       if (!ReadShort(src,&s,1,tok->binForm)){
@@ -1875,55 +2121,11 @@ static ReturnStatus GetStream(HMMSet *hset, Source *src, Token *tok,
          return(FAIL);
       }
    }
-   M = nMix[s];
-   pdf[s].nMix = M;
-   if (tok->sym == TMIX ) {
-      if (hset->hsKind == PLAINHS)
-         hset->hsKind = TIEDHS;
-      else 
-         if (hset->hsKind != TIEDHS){
-            HRError(7032,"GetStream: change to TIEDHS from other than PLAINHS");
-            return(FAIL);
-         }
-      pdf[s].spdf.tpdf = CreateTME(hset,M);
-      if((GetTiedMixtures(hset,src,tok,M,s,pdf[s].spdf.tpdf))<SUCCESS){
-         HMError(src,"GetTiedMixtures failed");
-         return(FAIL);
-      }
-   } 
-   else 
-      if (tok->sym == DPROB) {
-         if (hset->hsKind == PLAINHS)
-            hset->hsKind = DISCRETEHS;
-         else if (hset->hsKind != DISCRETEHS){
-            HRError(7032,"GetStream: change to DISCRETEHS from other than PLAINHS");
-            return(FAIL);
-         }
-         pdf[s].spdf.dpdf = CreateDME(hset,M);
-         if((GetDiscreteWeights(src,tok,M,pdf[s].spdf.dpdf))<SUCCESS){
-            HMError(src,"GetDiscreteWeights failed");
-            return(FAIL);
-         }
-      } else {  /* PLAIN/SHARED Mixtures */
-         cpdf = pdf[s].spdf.cpdf = CreateCME(hset,M);
-         if((GetMixture(hset,src,tok,M,cpdf))<SUCCESS){
-            HMError(src,"GetMixtures failed");
-            return(FAIL);
-         }
-         while (tok->sym==MIXTURE)
-            if((GetMixture(hset,src,tok,M,cpdf))<SUCCESS){
-               HMError(src,"GetMixtures failed");
-               return(FAIL);
-            }
-         for (m=1; m<=M; m++)
-            if (cpdf[m].mpdf == NULL){
-               if((cpdf[m].mpdf = EmptyMixPDF(hset,hset->swidth[s],s))==NULL){
-                  HMError(src,"EmptyMixPDF failed");
-                  return(FAIL);
-               }
-               cpdf[m].weight = 0.0;
-            }
-      }
+   if ( (ste[s].info = GetStreamInfo(hset, src, tok,s))==NULL ) {
+      HMError(src,"Get Stream Information failed");
+      return(FAIL);
+   }
+
    return(SUCCESS);
 }
   
@@ -1931,11 +2133,10 @@ static ReturnStatus GetStream(HMMSet *hset, Source *src, Token *tok,
 static StateInfo *GetStateInfo(HMMSet *hset, Source *src, Token *tok)
 {
    StateInfo *si;
-   int i,S;
-   short nMix[SMAX];
+   int i,s,S;
 
    if (trace&T_PAR) printf("HModel: GetStateInfo\n");
-   S = hset->swidth[0];
+   S = s = hset->swidth[0];
    if (tok->sym==MACRO && tok->macroType=='s') {
       if((si = (StateInfo *)GetStructure(hset,src,'s'))==NULL){
          HMError(src,"GetStructure failed");
@@ -1947,21 +2148,9 @@ static StateInfo *GetStateInfo(HMMSet *hset, Source *src, Token *tok)
          return(NULL);
       }
    } else {
-      if (tok->sym == NUMMIXES){
-         if (!ReadShort(src,nMix+1,S,tok->binForm)){
-            HMError(src,"Num Mix in Each Stream expected");
-            return(NULL);
-         }
-         if(GetToken(src,tok)<SUCCESS){
-            HMError(src,"GetToken failed");
-            return(NULL);
-         }
-      } else {
-         for (i=1;i<=S;i++)
-            nMix[i] = 1;
-      }
       si = (StateInfo *)New(hset->hmem,sizeof(StateInfo));
       si->nUse = 0; si->hook = NULL; si->weights = NULL;
+      si->dur = NULL; si->sIdx = 0; si->stateCounter = 0;
       si->pdf = CreateSE(hset,S);
       if (tok->sym==SWEIGHTS || (tok->sym==MACRO && tok->macroType=='w')){
          if((si->weights = GetSWeights(hset,src,tok))==NULL){
@@ -1973,12 +2162,12 @@ static StateInfo *GetStateInfo(HMMSet *hset, Source *src, Token *tok)
             return(NULL);
          }
       }
-      if((GetStream(hset,src,tok,si->pdf,nMix))<SUCCESS){
+      if ((GetStream(hset,src,tok,si->pdf))<SUCCESS) {
          HMError(src,"GetStream failed");
          return(NULL);
       }
       while(tok->sym==STREAM)
-         if((GetStream(hset,src,tok,si->pdf,nMix))<SUCCESS){
+         if ((GetStream(hset,src,tok,si->pdf))<SUCCESS) {
             HMError(src,"GetStream failed");
             return(NULL);
          }
@@ -2097,6 +2286,7 @@ static ReturnStatus GetHMMDef(HMMSet *hset, Source *src, Token *tok,
       return(FAIL);
    }
    hmm->numStates = N = nState;
+   hmm->hIdx=0;
    se = (StateElem *)New(hset->hmem,(N-2)*sizeof(StateElem));
    hmm->svec = se - 2;
    while (tok->sym == STATE) {
@@ -2204,6 +2394,7 @@ static LinXForm* GetLinXForm(HMMSet *hset, Source *src, Token *tok)
     if (hset==NULL) hmem = &xformStack;
     else hmem = hset->hmem;
     xf = (LinXForm *)New(hmem,sizeof(LinXForm));
+    memset(xf, 0, sizeof(LinXForm));
     if (!ReadInt(src,&(xf->vecSize),1,tok->binForm)){
       HRError(7013,"GetLinXForm: cannot read vector size");
       return(NULL);
@@ -2458,6 +2649,7 @@ static AdaptXForm* GetAdaptXForm(HMMSet *hset, Source *src, Token *tok)
     xform->rtree = NULL;
     xform->nUse = 0;
     xform->xformName = NULL;
+    xform->swapXForm = xform->parentXForm = NULL;
     if (!ReadString(src,buf)){
       HRError(7013,"GetAdaptXForm: cannot read Transform Kind");
       return(NULL);
@@ -2617,7 +2809,7 @@ void PutTiedWeight(FILE *f, short repeatLast, float w, Boolean binary)
 }
 
 /* PutTiedWeights: output mixture weights in compact format */
-void PutTiedWeights(FILE *f, StreamElem *se, Boolean binary)
+void PutTiedWeights(FILE *f, StreamInfo *sti, Boolean binary)
 {
    int repCount=0;
    float weight= -1;
@@ -2625,7 +2817,7 @@ void PutTiedWeights(FILE *f, StreamElem *se, Boolean binary)
    Vector v;
    
    putWtActive = FALSE;
-   M = se->nMix; v = se->spdf.tpdf;
+   M = sti->nMix; v = sti->spdf.tpdf;
    for (m=1; m<=M; m++){
       if (v[m] == weight && repCount < 255)
          ++repCount;
@@ -2675,7 +2867,7 @@ void PutMixWeight(FILE *f, short repeatLast, short w, Boolean binary)
 }
 
 /* PutDiscreteWeights: output mixture weights in compact format */
-void PutDiscreteWeights(FILE *f, StreamElem *se, Boolean binary)
+void PutDiscreteWeights(FILE *f, StreamInfo *sti, Boolean binary)
 {
    int repCount=0;
    short weight= -1;
@@ -2683,7 +2875,7 @@ void PutDiscreteWeights(FILE *f, StreamElem *se, Boolean binary)
    ShortVec v;
    
    putWtActive = FALSE;
-   M = se->nMix; v = se->spdf.dpdf;
+   M = sti->nMix; v = sti->spdf.dpdf;
    for (m=1; m<=M; m++){
       if (v[m] == weight && repCount < 255)
          ++repCount;
@@ -2703,20 +2895,20 @@ void PutDiscreteWeights(FILE *f, StreamElem *se, Boolean binary)
 }
 
 /* PutTiedMixtures: output mixture weights in compact tied mix format */
-void PutTiedMixtures(HMMSet *hset,FILE *f,int s,StreamElem *se,Boolean binary)
+void PutTiedMixtures(HMMSet *hset,FILE *f,StreamInfo *sti,Boolean binary)
 {
    PutSymbol(f,TMIX,binary);
-   fprintf(f," %s",ReWriteString(hset->tmRecs[s].mixId->name,NULL,DBL_QUOTE));
+   fprintf(f," %s",ReWriteString(hset->tmRecs[sti->stream].mixId->name,NULL,DBL_QUOTE));
    if (!binary) fprintf(f,"\n");
-   PutTiedWeights(f,se,binary);
+   PutTiedWeights(f,sti,binary);
 }
 
 /* PutDiscrete: output discrete weights in compact format */
-void PutDiscrete(FILE *f, StreamElem *se, Boolean binary)
+void PutDiscrete(FILE *f, StreamInfo *sti, Boolean binary)
 {
    PutSymbol(f,DPROB,binary);
    if (!binary) fprintf(f,"\n");
-   PutDiscreteWeights(f,se,binary);
+   PutDiscreteWeights(f,sti,binary);
 }
 
 /* ---------- Standard Macro Definition Output Routines ------------------ */
@@ -2753,7 +2945,7 @@ static void PutMean(HMMSet *hset, FILE *f, MLink q, SVector m,
       PutSymbol(f,MEAN,binary);
       size = VectorSize(m);
       WriteShort(f,&size,1,binary);
-      if (!binary) fprintf(f,"\n");
+      if (!binary && size != 0) fprintf(f,"\n");
       WriteVector(f,m,binary);
    }
 }
@@ -2772,7 +2964,7 @@ static void PutVariance(HMMSet *hset, FILE *f, MLink q, SVector v,
       PutSymbol(f,VARIANCE,binary);
       size = VectorSize(v);
       WriteShort(f,&size,1,binary);
-      if (!binary) fprintf(f,"\n");
+      if (!binary  && size != 0) fprintf(f,"\n");
       WriteVector(f,v,binary);
    }
 }
@@ -2859,18 +3051,27 @@ static void PutSWeights(HMMSet *hset, FILE *f, MLink q, SVector v,
                         Boolean inMacro, Boolean binary)
 {
    int nUse;
-   short size;
+   short s,size;
+   Boolean out = FALSE;
 
    nUse = GetUse(v);
    if (nUse > 0 || inMacro) 
       PutMacroHdr(hset,f,q,'w',v,binary);
    if (nUse == 0 || inMacro){
-      PutSymbol(f,SWEIGHTS,binary);
       size = VectorSize(v);
+      for (s=1;s<=size;s++) {
+         if (v[s]!=1.0) {
+            out = TRUE;
+            break;
+         }
+      }
+      if (out) {
+         PutSymbol(f,SWEIGHTS,binary);
       WriteShort(f,&size,1,binary);
       if (!binary) fprintf(f,"\n");
       WriteVector(f,v,binary);
    }
+}
 }
 
 /* PutTransMat: output transition matrix to stream f */
@@ -2922,6 +3123,7 @@ static void GetMixPDFInfo(HMMSet *hset, HMMDef *hmm, MixtureElem *tme, int *stat
    Boolean found;
    StateElem *se;
    StreamElem *ste;
+   StreamInfo *sti;
    MixtureElem *me;
 
    found = FALSE;
@@ -2932,7 +3134,8 @@ static void GetMixPDFInfo(HMMSet *hset, HMMDef *hmm, MixtureElem *tme, int *stat
    for (i=2; i<N; i++,se++){
       ste = se->info->pdf+1;
       for (s=1;s<=S;s++,ste++){
-         me = ste->spdf.cpdf + 1; M = ste->nMix;
+         sti = ste->info;
+         me = sti->spdf.cpdf + 1; M = sti->nMix;
          for (m=1;m<=M;m++,me++) {
             if (me == tme) {
                *state = i; *stream = s;
@@ -2953,9 +3156,9 @@ static void PutBaseClass(HMMSet *hset, FILE *f, MLink q, BaseClass *bclass,
 			 Boolean inMacro, Boolean binary) 
 {
   char buf[MAXSTRLEN];
-  int numClass, c;
+   int numClass, c, j;
   ILink i;
-  int stream, state, comp;
+   int stream=1, state=2, comp=1;
   HMMDef *hmm;
   
   if (bclass->fname == NULL)
@@ -2969,6 +3172,14 @@ static void PutBaseClass(HMMSet *hset, FILE *f, MLink q, BaseClass *bclass,
     PutSymbol(f,PARAMETERS,binary);
     WriteString(f,BaseClassKind2Str(bclass->bkind,buf),DBL_QUOTE);
     if (!binary) fprintf(f,"\n");
+    /* put <StreamInfo> for multiple streams system */
+    if (hset->swidth[0]>1) {
+      PutSymbol(f,STREAMINFO,binary);
+      WriteShort(f, hset->swidth, 1, binary);
+      for (j=1; j<=hset->swidth[0]; j++)
+        WriteShort(f, hset->swidth+j, 1, binary);
+        if (!binary) fprintf(f,"\n");
+    }
     PutSymbol(f,NUMCLASSES,binary);
     numClass = bclass->numClasses;
     WriteInt(f,&(numClass),1,binary);
@@ -3049,54 +3260,41 @@ static void PutMixPDF(HMMSet *hset, FILE *f, MLink q, MixPDF *mp,
    }  
 }
 
-/* PutStateInfo: output state info to stream f */
-static void PutStateInfo(HMMSet *hset, FILE *f, MLink q, StateInfo *si, 
+/* PutStreamInfo: output stream info */
+static void PutStreamInfo(HMMSet *hset, FILE *f, MLink q, StreamInfo *sti, 
                          Boolean inMacro, Boolean binary)
 {
-   int S;
+   short m;
    float wt;
-   StreamElem *se;
    MixtureElem *me;
-   short m,s,nMix[SMAX];
-   Boolean needNM = FALSE;
    
-   S = hset->swidth[0];
-   if (si->nUse > 0 || inMacro) 
-      PutMacroHdr(hset,f,q,'s',si,binary);
-   if (si->nUse == 0 || inMacro){
-      se = si->pdf+1;
-      for (s=1; s<=S; s++,se++) {
-         if (se->nMix>1) needNM = TRUE;
-         nMix[s] = se->nMix;
-      }
-      if (needNM){
-         PutSymbol(f,NUMMIXES,binary);
-         WriteShort(f,nMix+1,S,binary);
+   if (sti->nUse > 0 || inMacro) 
+      PutMacroHdr(hset,f,q,'p',sti,binary);
+
+   if (sti->nUse == 0 || inMacro) {
+      if (inMacro) {
+	     PutSymbol(f,STREAM,binary);
+	     WriteShort(f,&sti->stream,1,binary);
          if (!binary) fprintf(f,"\n");
       }
-      if (si->weights != NULL)
-         PutSWeights(hset,f,NULL,si->weights,FALSE,binary);
-      se = si->pdf+1;
-      for (s=1; s<=S; s++,se++){
-         if (S>1){
-            PutSymbol(f,STREAM,binary);
-            WriteShort(f,&s,1,binary);
+      if (sti->nMix>1) {
+	     PutSymbol(f,NUMMIXES,binary);
+         WriteInt(f,&sti->nMix,1,binary);
             if (!binary) fprintf(f,"\n");
          }
          switch (hset->hsKind) {
          case TIEDHS:
-            PutTiedMixtures(hset,f,s,se,binary);
+            PutTiedMixtures(hset,f,sti,binary);
             break;
          case DISCRETEHS:
-            PutDiscrete(f,se,binary);
+            PutDiscrete(f,sti,binary);
             break;
          case PLAINHS:
          case SHAREDHS:
-            me = se->spdf.cpdf+1;
-            for (m=1; m<=se->nMix; m++,me++){
+            me = sti->spdf.cpdf+1;
+            for (m=1; m<=sti->nMix; m++,me++) {
                wt = MixWeight(hset,me->weight);
-               if (wt > MINMIX) {
-                  if (se->nMix > 1){
+               if (sti->nMix > 1) { 
                      PutSymbol(f,MIXTURE,binary);
                      WriteShort(f,&m,1,binary);
                      WriteFloat(f,&wt,1,binary);
@@ -3104,9 +3302,33 @@ static void PutStateInfo(HMMSet *hset, FILE *f, MLink q, StateInfo *si,
                   }
                   PutMixPDF(hset,f,NULL,me->mpdf,FALSE,binary);
                }
-            }
             break;
          }
+      }
+}
+
+/* PutStateInfo: output state info to stream f */
+static void PutStateInfo(HMMSet *hset, FILE *f, MLink q, StateInfo *si, 
+                         Boolean inMacro, Boolean binary)
+{
+   int S;
+   StreamElem *ste;
+   short s;
+   
+   S = hset->swidth[0];
+   if (si->nUse > 0 || inMacro) 
+      PutMacroHdr(hset,f,q,'s',si,binary);
+   if (si->nUse == 0 || inMacro) {
+      if (si->weights != NULL)
+         PutSWeights(hset,f,NULL,si->weights,FALSE,binary);
+      ste = si->pdf+1;
+      for (s=1; s<=S; s++,ste++) {
+         if (S>1) {
+            PutSymbol(f,STREAM,binary);
+            WriteShort(f,&s,1,binary);
+            if (!binary) fprintf(f,"\n");
+         }
+         PutStreamInfo(hset,f,NULL,ste->info,FALSE,binary);
       }
       if (hset->dkind!=NULLD && si->dur != NULL)
          PutDuration(hset,f,NULL,si->dur,FALSE,binary);
@@ -3230,8 +3452,9 @@ static void PutAdaptXForm(HMMSet *hset, FILE *f, MLink q, AdaptXForm *xform,
 /* PutOptions: write the current global options to f */
 static void PutOptions(HMMSet *hset, FILE *f, Boolean binary)
 {
-   short i,S;
+   short i,s,S,M;
    char buf[64];
+   Boolean msd;
 
    if (hset->hmmSetId!=NULL) {
       PutSymbol(f,HMMSETID,binary);
@@ -3243,6 +3466,24 @@ static void PutOptions(HMMSet *hset, FILE *f, Boolean binary)
    for (i=1;i<=S;i++)
       WriteShort(f,hset->swidth+i,1,binary);
    if (!binary) fprintf(f,"\n");
+
+   /* MSD check: if any MSDs are not used, we need not to put options about MSD */
+   for (s=1,msd=FALSE; s<=hset->swidth[0]; s++) {
+      if (hset->msdflag[s]!=0) {
+         msd = TRUE;
+         break;
+      }
+   }
+   
+   if (msd) {
+      M = hset->msdflag[0];
+      PutSymbol(f,MSDINFO,binary);
+      WriteShort(f,hset->msdflag,1,binary);
+      for (i=1;i<=M;i++)
+         WriteShort(f,hset->msdflag+i,1,binary);
+      if (!binary) fprintf(f,"\n");
+   }
+   
    PutSymbol(f,VECSIZE,binary);
    WriteShort(f,&hset->vecSize,1,binary);
    if (hset->projSize > 0) {
@@ -3323,7 +3564,7 @@ static unsigned Hash(char *name)
 /* EXPORT-> NewMacro: append a macro with given values to list */
 MLink NewMacro(HMMSet *hset, short fidx, char type, LabId id, Ptr structure)
 {
-   unsigned int hashval;
+   unsigned long hashval;
    MLink m;
    PtrMap *p;
 
@@ -3380,10 +3621,11 @@ MLink NewMacro(HMMSet *hset, short fidx, char type, LabId id, Ptr structure)
    hashval = Hash(id->name);
    m->type = type; m->fidx = fidx;
    m->id = id;
+   m->hook = NULL;
    m->structure = structure;
    m->next = hset->mtab[hashval]; hset->mtab[hashval] = m;
    if (hset->pmap != NULL) {
-      hashval = (unsigned int)m->structure % PTRHASHSIZE;
+      hashval = (unsigned long)m->structure % PTRHASHSIZE;
       p = (PtrMap *)New(hset->hmem,sizeof(PtrMap));
       p->ptr = m->structure; p->m = m; 
       p->next = hset->pmap[hashval]; hset->pmap[hashval] = p;
@@ -3438,7 +3680,7 @@ MLink FindMacroStruct(HMMSet *hset, char type, Ptr structure)
 {
    MLink m;
    int h,n;
-   unsigned int i;
+   unsigned long i;
    PtrMap *p;
    
 
@@ -3447,7 +3689,7 @@ MLink FindMacroStruct(HMMSet *hset, char type, Ptr structure)
       if (trace&T_PMP) printf("HModel: creating pointer map hash table\n");
       for (n=0,h=0; h<MACHASHSIZE; h++)
          for (m=hset->mtab[h]; m!=NULL; m=m->next){
-            i = (unsigned int)m->structure % PTRHASHSIZE;
+            i = (unsigned long)m->structure % PTRHASHSIZE;
             p = (PtrMap *)New(hset->hmem,sizeof(PtrMap));
             p->ptr = m->structure; p->m = m; 
             p->next = hset->pmap[i]; hset->pmap[i] = p;
@@ -3455,7 +3697,7 @@ MLink FindMacroStruct(HMMSet *hset, char type, Ptr structure)
          }
       if (trace&T_PMP) printf("HModel: %d pointers hashed\n",n);
    }
-   i = (unsigned int)structure % PTRHASHSIZE;
+   i = (unsigned long)structure % PTRHASHSIZE;
    for (p = hset->pmap[i]; p != NULL; p = p->next) {
       m = p->m;
       if (p->ptr == structure && m->type == type)
@@ -3498,6 +3740,7 @@ void SetSemiTiedVFloor(HMMSet *hset)
    bclass = xform->bclass;
    for (b=1;b<=bclass->numClasses;b++) {
       numXf = xform->xformWgts.assign[b];
+      if (numXf!=0) {
       vFloor = xform->xformSet->xforms[numXf]->vFloor;
       if (vFloor != NULL) {
          for (il=bclass->ilist[b]; il!=NULL; il=il->next) {
@@ -3507,12 +3750,13 @@ void SetSemiTiedVFloor(HMMSet *hset)
       }
    } 
 }
+}
 
 /* EXPORT->SetVFloor: set vFloor[1..S] from macros "varFloorN" */
 void SetVFloor(HMMSet *hset, Vector *vFloor, float minVar)
 {
    int j,s,S,size;
-   char mac[256], num[10];
+   char mac[MAXSTRLEN], num[10];
    LabId id;
    MLink m;
    SVector v;
@@ -3538,6 +3782,27 @@ void SetVFloor(HMMSet *hset, Vector *vFloor, float minVar)
          for (j=1; j<=hset->swidth[s]; j++)
             vFloor[s][j] = minVar;
       }
+   }
+}
+
+/* EXPORT->ResetVFloor: reset vFloor[1..S] */
+void ResetVFloor(HMMSet *hset, Vector *vFloor)
+{
+   int s;
+   char mac[MAXSTRLEN], num[10];
+   LabId id;
+   MLink m;
+   
+   if (vFloor==NULL) return;
+   
+   for (s=hset->swidth[0]; s>0; s--) {
+      strcpy(mac,"varFloor");
+      sprintf(num,"%d",s); strcat(mac,num);
+      id = GetLabId(mac,FALSE);
+      if (id != NULL  && (m=FindMacroName(hset,'v',id)) != NULL)
+         vFloor[s] = NULL;
+      else  
+         FreeVector(hset->hmem,vFloor[s]);
    }
 }
 
@@ -3579,9 +3844,10 @@ void ApplyVFloor(HMMSet *hset)
       mixFloored = FALSE;
       cov=hss.mp->cov;
       minv = vFloor[hss.s];
-      vSize = VectorSize(minv);
+      vSize = VectorSize(hss.mp->mean);
       switch (hss.mp->ckind) {
       case DIAGC: /* diagonal covariance matrix */ 
+         if (vSize == VectorSize(minv)) {  /* check MSD */ 
          for (k=1; k<=vSize; k++){
             if (cov.var[k]<minv[k]) {
                cov.var[k] = minv[k];
@@ -3590,8 +3856,10 @@ void ApplyVFloor(HMMSet *hset)
             }
          }
          FixDiagGConst(hss.mp); 
+         }
          break;
       case INVDIAGC: /* inverse diagonal covariance matrix */ 
+         if (vSize == VectorSize(minv)) {  /* check MSD */ 
          for (k=1; k<=vSize; k++){
             if (cov.var[k]> 1.0/minv[k]) {
                cov.var[k] = 1.0/minv[k];
@@ -3600,8 +3868,10 @@ void ApplyVFloor(HMMSet *hset)
             }
          }
          FixInvDiagGConst(hss.mp); 
+         }
          break;
       case FULLC: /* full covariance matrix */ 
+         if (vSize == VectorSize(minv)) {  /* check MSD */ 
          CovInvert(cov.inv,cov.inv);
          for (k=1; k<=vSize; k++){
             if (cov.inv[k][k]<minv[k]) {
@@ -3611,6 +3881,7 @@ void ApplyVFloor(HMMSet *hset)
             }
          }
          FixFullGConst(hss.mp, CovInvert(cov.inv,cov.inv) ); 
+         }
          break;
       case LLTC:
       case XFORMC:   
@@ -3644,7 +3915,11 @@ void PrintHMMProfile(FILE *f, HLink hmm)
    for (i=2;i<N;i++) fprintf(f,"%3d",i); fprintf(f," (width)\n");
    for (s=1;s<=S;s++){
       fprintf(f," Mixes  s%d: ",s); 
-      for (i=2;i<N;i++) fprintf(f,"%3d",hmm->svec[i].info->pdf[s].nMix);
+      for (i=2;i<N;i++) fprintf(f,"%3d",hmm->svec[i].info->pdf[s].info->nMix);
+      fprintf(f," ( %2d  )\n",hmm->owner->swidth[s]);
+      if (hmm->owner->msdflag[s])
+         fprintf(f," ( MSD  <= %2d )\n",hmm->owner->swidth[s]);
+      else
       fprintf(f," ( %2d  )\n",hmm->owner->swidth[s]);
       fprintf(f," Num Using: "); 
       for (i=2;i<N;i++) fprintf(f,"%3d",hmm->svec[i].info->nUse); 
@@ -3729,7 +4004,7 @@ void PrintHSetProfile(FILE *f, HMMSet *hset)
    }
 
    fprintf (f, " Global CovKind = %s\n", CovKind2Str(hset->ckind, buf));
-   for (ck = 0; ck < NUMCKIND; ck++) 
+   for (ck = (CovKind) 0; ck < NUMCKIND; ck++) 
       if (hset->ckUsage[ck] > 0 ) 
 	 fprintf (f, "   CK %-8s = %d mixcomps\n", CovKind2Str (ck, buf), hset->ckUsage[ck]);
 
@@ -3785,7 +4060,7 @@ static ReturnStatus LoadAllMacros(HMMSet *hset, char *fname, short fidx)
             return(FAIL);
          }
          id = GetLabId(buf,TRUE);
-         if (type == 'h'){    /* load a HMM definition */
+         if (type == 'h'){    /* load an HMM definition */
             m = FindMacroName(hset,'h',id);
             if (m == NULL) {
                if (!allowOthers){
@@ -3797,7 +4072,7 @@ static ReturnStatus LoadAllMacros(HMMSet *hset, char *fname, short fidx)
                dset=*hset;
                dset.hmem=&gstack;
                dhmm = (HLink) New(&gstack,sizeof(HMMDef));
-               dhmm->owner=NULL; dhmm->numStates=0; dhmm->nUse=0; dhmm->hook=NULL;
+               dhmm->owner=NULL; dhmm->numStates=0; dhmm->nUse=0; dhmm->hook=NULL; dhmm->hIdx=0;
                if (trace&T_MAC)
                   printf("HModel: skipping HMM Def from macro %s\n",id->name);
                if(GetToken(&src,&tok)<SUCCESS){
@@ -3843,6 +4118,7 @@ static ReturnStatus LoadAllMacros(HMMSet *hset, char *fname, short fidx)
             }
             switch(type){
             case 's': structure = GetStateInfo(hset,&src,&tok); break;
+            case 'p': structure = GetStreamInfo(hset,&src,&tok,0); break;
             case 'm': structure = GetMixPDF(hset,&src,&tok);    break;
             case 'u': structure = GetMean(hset,&src,&tok);      break;
             case 'v': structure = GetVariance(hset,&src,&tok);  break;
@@ -3912,7 +4188,9 @@ static Boolean IsShared(HMMSet *hset)
    char types[20];
    
    if (HasMacros(hset,types)) {
-      if (strchr(types,'m') != NULL ||  strchr(types,'s') != NULL)
+      if (strchr(types,'m') != NULL ||  
+          strchr(types,'s') != NULL || 
+          strchr(types,'p') != NULL )
          return TRUE;
    }
    return FALSE;
@@ -3943,17 +4221,26 @@ void SetIndexes(HMMSet *hset)
 {
    HMMScanState hss;
    StateInfo *si;
+   StreamInfo *sti;
    MixPDF *mp;
    MLink m;
-   int h,nm,nsm,ns,nss,nt;
+   int h,nm,nsm,ns,nss,nsp,np,nh,nt;
    
    /* Reset indexes */
-   indexSet = TRUE;
-   nt=0;
+   hset->indexSet = TRUE;
+   nt=nh=0;
    NewHMMScan(hset,&hss);
    while(GoNextState(&hss,FALSE))
       hss.si->sIdx=-1;
    EndHMMScan(&hss);
+
+   if (hset->hsKind == PLAINHS || hset->hsKind == SHAREDHS) {
+      NewHMMScan(hset,&hss);
+      while (GoNextStream(&hss,FALSE))
+         hss.sti->pIdx=-1;
+      EndHMMScan(&hss);
+   }
+
    if (hset->hsKind == PLAINHS || hset->hsKind == SHAREDHS) {
       NewHMMScan(hset,&hss);
       while(GoNextMix(&hss,FALSE))
@@ -3964,10 +4251,11 @@ void SetIndexes(HMMSet *hset)
    NewHMMScan(hset,&hss);
    do {
       if (!IsSeenV(hss.hmm->transP)) {
-         SetHook(hss.hmm->transP,(Ptr)(++nt));
+         SetHook(hss.hmm->transP,(Ptr)((long)(++nt)));
          TouchV(hss.hmm->transP);
       }
-      hss.hmm->tIdx=(int)GetHook(hss.hmm->transP);
+      hss.hmm->tIdx=(int)((long)GetHook(hss.hmm->transP));
+      hss.hmm->hIdx=nh++;
    }
    while(GoNextHMM(&hss));
    EndHMMScan(&hss);
@@ -3979,23 +4267,36 @@ void SetIndexes(HMMSet *hset)
    while(GoNextHMM(&hss));
    EndHMMScan(&hss);
 
-   nsm=nss=0;
+   nsm=nss=nsp=0;
    for (h=0; h<MACHASHSIZE; h++)
       for (m=hset->mtab[h]; m!=NULL; m=m->next) {
-         if (m->type=='s') {
+         if (m->type=='s') { /* shared state */
             si=(StateInfo *)m->structure;
             if (si->sIdx<0) si->sIdx=++nss;
          }
-         if (m->type=='m') {
+         if (m->type=='p') { /* shared stream */
+            sti=(StreamInfo *)m->structure;
+            if (sti->pIdx<0) sti->pIdx=++nsp;
+         }
+         if (m->type=='m') { /* shared mixture */
             mp=(MixPDF *)m->structure;
             if (mp->mIdx<0) mp->mIdx=++nsm;
          }
       }
-   nm=nsm;ns=nss;
+
+   nm=nsm;ns=nss;np=nsp;
    NewHMMScan(hset,&hss);
    while(GoNextState(&hss,FALSE))
       if (hss.si->sIdx<0) hss.si->sIdx=++ns;
    EndHMMScan(&hss);
+
+   if (hset->hsKind == PLAINHS || hset->hsKind == SHAREDHS) {
+      NewHMMScan(hset,&hss);
+      while (GoNextStream(&hss,FALSE))
+         if (hss.sti->pIdx<0) hss.sti->pIdx=++np;
+      EndHMMScan(&hss);
+   }
+
    if (hset->hsKind == PLAINHS || hset->hsKind == SHAREDHS) {
       NewHMMScan(hset,&hss);
       while(GoNextMix(&hss,FALSE))
@@ -4007,6 +4308,7 @@ void SetIndexes(HMMSet *hset)
       EndHMMScan(&hss);
    }
    hset->numStates=ns; hset->numSharedStates=nss;
+   hset->numStreams=np; hset->numSharedStreams=nsp;
    hset->numMix=nm; hset->numSharedMix=nsm;
    hset->numTransP=nt;
 }
@@ -4022,7 +4324,7 @@ void SetCovKindUsage (HMMSet *hset)
    HMMScanState hss;
    CovKind ck;
 
-   for (ck = 0; ck < NUMCKIND; ck++)
+   for (ck = (CovKind) 0; ck < NUMCKIND; ck++)
       hset->ckUsage[ck] =0;
 
    if (hset->hsKind == DISCRETEHS) return;
@@ -4037,7 +4339,7 @@ void SetCovKindUsage (HMMSet *hset)
       CovKind lastSeenCK = NULLC;
       int nCK = 0;
 
-      for (ck = 0; ck < NUMCKIND; ck++)
+      for (ck = (CovKind) 0; ck < NUMCKIND; ck++)
          if (hset->ckUsage[ck] > 0) {
             ++nCK;
             lastSeenCK = ck;
@@ -4194,10 +4496,10 @@ void CreateHMMSet(HMMSet *hset, MemHeap *heap, Boolean allowTMods)
    hset->hmmSetId = NULL;
    hset->mmfNames = NULL; hset->numFiles = 0;
    hset->allowTMods = allowTMods;  hset->optSet = FALSE;
-   hset->vecSize = 0; hset->swidth[0] = 0;
+   hset->vecSize = 0; hset->swidth[0] = 0; hset->msdflag[0] = 0;
    hset->dkind = NULLD; hset->ckind = NULLC; hset->pkind = 0;
    hset->numPhyHMM = hset->numLogHMM = hset->numMacros = 0;
-   hset->xf = NULL; hset->logWt = FALSE;
+   hset->xf = NULL; hset->logWt = FALSE; hset->indexSet = FALSE;
    for (s=1; s<SMAX; s++) {
       hset->tmRecs[s].nMix = 0; hset->tmRecs[s].mixId = NULL;
       hset->tmRecs[s].probs = NULL; hset->tmRecs[s].mixes = NULL;
@@ -4214,6 +4516,7 @@ void CreateHMMSet(HMMSet *hset, MemHeap *heap, Boolean allowTMods)
    hset->semiTiedMacro = NULL;
    hset->semiTied = NULL;
    hset->projSize = 0;
+   hset->xformDirNames = NULL;
 }
 
 /* CreateHMM: create logical macro. If pId is unknown, create macro for
@@ -4234,6 +4537,7 @@ static ReturnStatus CreateHMM(HMMSet *hset, LabId lId, LabId pId)
    if (m == NULL) {  /* need to create new phys macro and HMMDef */
       hmm = (HLink)New(hset->hmem,sizeof(HMMDef));
       hmm->owner = hset; hmm->nUse = 1; hmm->hook = NULL;
+      hmm->svec = NULL; hmm->dur = NULL; hmm->transP = NULL; hmm->tIdx=0;
       hmm->numStates = 0;  /* indicates HMMDef not yet defined */
       if((m=NewMacro(hset,0,'h',pId,hmm))==NULL){
          HRError(7091,"CreateHMM: NewMacro (Physical) failed"); /*will never happen*/
@@ -4258,7 +4562,7 @@ static ReturnStatus CreateHMM(HMMSet *hset, LabId lId, LabId pId)
 }
 
 
-/* InitHMMSet: Init a HMM set by reading the HMM list in fname.
+/* InitHMMSet: Init an HMM set by reading the HMM list in fname.
                If isSingle, then fname is the name of a single HMM */
 static ReturnStatus InitHMMSet(HMMSet *hset, char *fname, Boolean isSingle)
 {
@@ -4316,7 +4620,7 @@ static ReturnStatus InitHMMSet(HMMSet *hset, char *fname, Boolean isSingle)
 }
 
 
-/* EXPORT->MakeHMMSet: Make a HMM set by reading the HMM list in fname */
+/* EXPORT->MakeHMMSet: Make an HMM set by reading the HMM list in fname */
 ReturnStatus MakeHMMSet(HMMSet *hset, char *fname)
 {
    if(InitHMMSet(hset, fname, FALSE)<SUCCESS){
@@ -4387,15 +4691,19 @@ static void SaveMacros(FILE *f, HMMSet *hset, short fidx, Boolean binary)
 	       /* should these be associated with the models or not ??? */
             default: break;
             }
-   for (h=0; h<MACHASHSIZE; h++)    /* then higher levels */
+   for (h=0; h<MACHASHSIZE; h++)    /* then higher levels (mixture) */
       for (m=hset->mtab[h]; m!=NULL; m=m->next)
          if (m->fidx == fidx && m->type == 'm')
             PutMixPDF(hset,f,m,(MixPDF *)m->structure,TRUE,binary);
-   for (h=0; h<MACHASHSIZE; h++)    /* then higher levels */
+   for (h=0; h<MACHASHSIZE; h++)    /* then higher levels (stream) */
+      for (m=hset->mtab[h]; m!=NULL; m=m->next)
+         if (m->fidx == fidx && m->type == 'p')
+            PutStreamInfo(hset,f,m,(StreamInfo *)m->structure,TRUE,binary);
+   for (h=0; h<MACHASHSIZE; h++)    /* then higher levels (state) */
       for (m=hset->mtab[h]; m!=NULL; m=m->next)
          if (m->fidx == fidx && m->type == 's')
             PutStateInfo(hset,f,m,(StateInfo *)m->structure,TRUE,binary);
-   for (h=0; h<MACHASHSIZE; h++)    /* then top model level */
+   for (h=0; h<MACHASHSIZE; h++)    /* then top level (HMM) */
       for (m=hset->mtab[h]; m!=NULL; m=m->next)
          if (m->fidx == fidx && m->type == 'h')
             PutHMMDef(hset,f,m,TRUE,binary); 
@@ -4491,7 +4799,7 @@ static char *InitXFormScanner(HMMSet *hset, char *macroname, char *fname,
   if ((fname==NULL) || ((f=FOpen(fname,NoFilter,&isPipe)) == NULL)) {
     if ((trace&T_XFD) && (fname!=NULL))
       HRError(7010,"InitXFormScanner: Cannot open source file %s",fname);
-    p = xformDirNames;
+    p = hset->xformDirNames;
     while ((p!=NULL) && 
 	   ((f=FOpen(MakeFN(macroname,p->dirName,NULL,buf),NoFilter,&isPipe)) == NULL)) {
       if (trace&T_XFD) 
@@ -4745,7 +5053,7 @@ void SaveAllXForms(HMMSet *hset, char *fname, Boolean binary)
   Boolean isPipe;
   int fidx=CREATEFIDX;
       
-  binary = binary||saveBinary;
+  binary = (binary||saveBinary) ? TRUE : FALSE;
   if ((f=FOpen(fname,HMMDefOFilter,&isPipe)) == NULL){
     HError(7011,"SaveAllXForm: Cannot create output file %s",fname);
   }
@@ -4810,7 +5118,7 @@ void SaveOneXForm(HMMSet *hset, AdaptXForm *xform, char *fname, Boolean binary)
 
   if (xform->nUse>0) 
     HError(999,"Shared AdaptXForm cannot store to a single file");
-  binary = binary||saveBinary;
+  binary = (binary||saveBinary) ? TRUE : FALSE;
   if (xform->swapXForm != NULL) { /* need to save the parent xform */
      swapxform = xform->swapXForm;
      xform->swapXForm = NULL;
@@ -4841,6 +5149,7 @@ void SaveInputXForm(HMMSet *hset, InputXForm *xf, char *fname, Boolean binary)
   FILE *f;
   Boolean isPipe;
 
+  binary = (binary||saveBinary) ? TRUE : FALSE;
   if ((f=FOpen(fname,HMMDefOFilter,&isPipe)) == NULL){
     HError(7011,"SaveInputXForm: Cannot create output file %s",fname);
   }
@@ -4879,12 +5188,12 @@ void SaveInOneFile(HMMSet *hset, char *fname)
 void FixOrphanMacros(HMMSet *hset)
 {
    int h,numMacs=0,numHMMs = 0;
-   short firstx,firsth,firsts,firstm;
+   short firstx,firsth,firsts,firstp,firstm;
    MLink m;
    MILink p;
 
    /* find first occ of major macro classes */
-   firsth=firsts=firstm=firstx=hset->numFiles+1;
+   firsth=firsts=firstp=firstm=firstx=hset->numFiles+1;
    for (h=0; h<MACHASHSIZE; h++)
       for (m=hset->mtab[h]; m!=NULL; m=m->next)
          if (m->fidx == 0)
@@ -4901,6 +5210,9 @@ void FixOrphanMacros(HMMSet *hset)
                break;
             case 's':
                if (m->fidx<firsts) firsts=m->fidx;
+               break;
+            case 'p':
+               if (m->fidx<firstp) firstp=m->fidx;
                break;
             case 'm':
                if (m->fidx<firstm) firstm=m->fidx;
@@ -4921,11 +5233,12 @@ void FixOrphanMacros(HMMSet *hset)
          firsts=firsth;
          if (firsts>2) --firsts;
       }
-      if (firstm>firsts) firstm = firsts;
+      if (firstp>firsts) firstp = firsts;
+      if (firstm>firstp) firstm = firstp;
       if (firstx>firstm) firstx = firstm;
       if (trace&T_ORP)
-         printf("  files=%d h=%d,s=%d,m=%d,x=%d\n",
-                hset->numFiles,firsth,firsts,firstm,firstx);
+         printf("  files=%d h=%d,s=%d,p=%d,m=%d,x=%d\n",
+                hset->numFiles,firsth,firsts,firstp,firstm,firstx);
       /* finally fix the fidx's */
       for (h=0; h<MACHASHSIZE; h++)
          for (m=hset->mtab[h]; m!=NULL; m=m->next)
@@ -4939,6 +5252,8 @@ void FixOrphanMacros(HMMSet *hset)
                   break;
                case 's':
                   m->fidx = firsts; break;
+               case 'p':
+                  m->fidx = firstp; break; 
                case 'm':
                   m->fidx = firstm; break;
                case 'o':
@@ -4971,7 +5286,7 @@ static void ReOrderComponents(HMMSet *hset)
 
    NewHMMScan(hset,&hss);
    while(GoNextStream(&hss,FALSE))
-      qsort(hss.ste->spdf.cpdf+1,hss.M,sizeof(MixtureElem),gconst_cmp);
+      qsort(hss.sti->spdf.cpdf+1,hss.M,sizeof(MixtureElem),gconst_cmp);
    EndHMMScan(&hss);
 }
 
@@ -4980,7 +5295,7 @@ ReturnStatus SaveHMMSet(HMMSet *hset, char *hmmDir, char *hmmExt, char *macroExt
 {
    FILE *f;
    MILink p;
-   char fname[256];
+   char fname[MAXSTRLEN];
    int h,i;
    MLink m;
    Boolean isPipe;
@@ -4989,7 +5304,7 @@ ReturnStatus SaveHMMSet(HMMSet *hset, char *hmmDir, char *hmmExt, char *macroExt
    /* Sort mixture components according to the gConst values */
    if ((hset->hsKind == PLAINHS || hset->hsKind == SHAREDHS) && reorderComps)
       ReOrderComponents(hset);
-   binary = binary || saveBinary;
+   binary = (binary || saveBinary) ? TRUE : FALSE;
    /* First output to all named MMF files */
    for (p=hset->mmfNames,i=1; p!=NULL; p=p->next,i++) 
       if (p->isLoaded) {
@@ -5025,7 +5340,7 @@ ReturnStatus SaveHMMSet(HMMSet *hset, char *hmmDir, char *hmmExt, char *macroExt
    return(SUCCESS);
 }
 
-/* EXPORT->SaveHMMList: Save a HMM list in fname describing given HMM set */
+/* EXPORT->SaveHMMList: Save an HMM list in fname describing given HMM set */
 ReturnStatus SaveHMMList(HMMSet *hset, char *fname)
 {
    int h;
@@ -5063,7 +5378,7 @@ ReturnStatus SaveHMMList(HMMSet *hset, char *fname)
 /* EXPORT->IsSeen: return true if flag is "set" */
 Boolean IsSeen(int flag)
 {
-   return (flag<0);
+   return ((flag<0) ? TRUE : FALSE);
 }
 
 /* EXPORT->Touch: set given flag */
@@ -5085,15 +5400,15 @@ void Untouch(int *flag)
 }
 
 /* EXPORT->ClearStreams: clear flags in given stream */
-void ClearStreams(HMMSet *hset, StreamElem *ste, ClearDepth depth)
+void ClearStreams(HMMSet *hset, StreamInfo *sti, ClearDepth depth)
 {
    MixPDF *mp;
    int m;
    
-   Untouch(&ste->nMix);
+   Untouch(&sti->nUse);
    if (depth==CLR_ALL && (hset->hsKind==PLAINHS || hset->hsKind==SHAREDHS)) {
-      for (m=1; m<=ste->nMix; m++){
-         mp = ste->spdf.cpdf[m].mpdf;
+      for (m=1; m<=sti->nMix; m++){
+         mp = sti->spdf.cpdf[m].mpdf;
          Untouch(&mp->nUse);
          UntouchV(mp->mean);
          UntouchV(mp->cov.var);  
@@ -5127,7 +5442,7 @@ void ClearSeenFlags(HMMSet *hset, ClearDepth depth)
                   if (si->dur != NULL) UntouchV(si->dur);
                   if (depth>=CLR_STREAMS)
                      for (s=1,ste=si->pdf+1; s<=S; s++,ste++)
-                        ClearStreams(hset,ste,depth);
+                        ClearStreams(hset,ste->info,depth);
                }
          }
    if ((hset->hsKind == TIEDHS) && (depth==CLR_ALL)) {
@@ -5147,13 +5462,13 @@ void ClearSeenFlags(HMMSet *hset, ClearDepth depth)
 int MaxMixtures(HLink hmm)
 {
    int i,s,S,maxM = 0;
-   StreamElem *se;
+   StreamElem *ste;
    
    S = hmm->owner->swidth[0];
    for (i=2; i<hmm->numStates; i++){
-      se = hmm->svec[i].info->pdf +1;
-      for (s=1; s<=S; s++,se++)
-         if (se->nMix > maxM) maxM = se->nMix;
+      ste = hmm->svec[i].info->pdf +1;
+      for (s=1; s<=S; s++,ste++)
+         if (ste->info->nMix > maxM) maxM = ste->info->nMix;
    }
    return maxM;
 }
@@ -5162,11 +5477,11 @@ int MaxMixtures(HLink hmm)
 int MaxMixInS(HLink hmm, int s)
 {
    int i,maxM = 0;
-   StreamElem *se;
+   StreamElem *ste;
    
    for (i=2; i<hmm->numStates; i++){
-      se = hmm->svec[i].info->pdf +s;
-      if (se->nMix > maxM) maxM = se->nMix;
+      ste = hmm->svec[i].info->pdf +s;
+      if (ste->info->nMix > maxM) maxM = ste->info->nMix;
    }
    return maxM;
 }
@@ -5344,7 +5659,7 @@ void PrecomputeTMix(HMMSet *hset, Observation *x, float tmThresh, int topM)
 }
 
 /* DOutP: Log prob of x in given mixture - Diagonal Case */
-static LogFloat DOutP(Vector x, int vecSize, MixPDF *mp)
+static LogFloat DOutP(Vector x, const int vecSize, MixPDF *mp)
 {
    int i;
    float sum,xmm;
@@ -5358,7 +5673,7 @@ static LogFloat DOutP(Vector x, int vecSize, MixPDF *mp)
 }
 
 /* FOutP: Log prob of x in given mixture - Full Covariance Case */
-static LogFloat FOutP(Vector x, int vecSize, MixPDF *mp)
+static LogFloat FOutP(Vector x, const int vecSize, MixPDF *mp)
 {
    float sum;
    int i,j;
@@ -5382,14 +5697,14 @@ static LogFloat FOutP(Vector x, int vecSize, MixPDF *mp)
 
 
 /* COutP: Log prob of x in given mixture - LLT (Choleski) Cov Case */
-static LogFloat COutP(Vector x, int vecSize, MixPDF *mp)
+static LogFloat COutP(Vector x, const int vecSize, MixPDF *mp)
 {
    HError(7001,"COutP: Choleski storage not yet implemented");
    return 0.0;
 }
 
 /* XOutP: Log prob of x in given mixture - XForm Case */
-static LogFloat XOutP(Vector x, int vecSize, MixPDF *mp)
+static LogFloat XOutP(Vector x, const int vecSize, MixPDF *mp)
 {
    Vector xmm,trans_xmm;
    int i,j;
@@ -5417,7 +5732,7 @@ static LogFloat XOutP(Vector x, int vecSize, MixPDF *mp)
 }
 
 /* EXPORT-> IDOutP: Log prob of x in given mixture - Inverse Diagonal Case */
-LogFloat IDOutP(Vector x, int vecSize, MixPDF *mp)
+LogFloat IDOutP(Vector x, const int vecSize, MixPDF *mp)
 {
    int i;
    float sum,xmm;
@@ -5486,7 +5801,11 @@ LogFloat MOutP(Vector x, MixPDF *mp)
    int vSize;
    LogFloat px;
    
-   vSize=VectorSize(x);
+   px = LZERO;
+   vSize = SpaceOrder(x);   
+   if (vSize == VectorSize(mp->mean)) {
+      if (vSize == 0) px = 0.0;
+      else 
    switch (mp->ckind) {
    case DIAGC:    px=DOutP(x,vSize,mp); break;
    case INVDIAGC: px=IDOutP(x,vSize,mp); break;
@@ -5495,12 +5814,34 @@ LogFloat MOutP(Vector x, MixPDF *mp)
    case XFORMC:   px=XOutP(x,vSize,mp); break;
    default:       px = LZERO;
    }
+   }
    return px;
 }
 
 
+/* ------------------------- DAEM -------------------------- */
+
+static float tempDAEM = 1.0;       /* temerature parameter for DAEM */
+
+/* EXPORT-> SetDAEMTemp: sets temperature for DAEM */
+void SetDAEMTemp(float temp)
+{
+   tempDAEM = temp;
+}
+
+/* EXPORT-> ApplyDAEM: returns log prob * temperature parameter  */
+LogFloat ApplyDAEM(LogFloat lprob)
+{
+   LogFloat lp;
+ 
+   if (lprob==LZERO) return lprob;
+   lp = lprob * tempDAEM;
+   return (lp<LSMALL) ? LZERO : lp;
+}
+
+
 /* EXPORT-> SOutP: returns log prob of stream s of observation x */
-LogFloat SOutP(HMMSet *hset, int s, Observation *x, StreamElem *se)
+LogFloat SOutP(HMMSet *hset, int s, Observation *x, StreamInfo *sti)
 {
    int m,vSize;
    LogDouble bx,px;
@@ -5518,12 +5859,17 @@ LogFloat SOutP(HMMSet *hset, int s, Observation *x, StreamElem *se)
    case PLAINHS:
    case SHAREDHS:
       v = x->fv[s];
+      if (hset->msdflag[s]) {
+         vSize = SpaceOrder(v);
+      } 
+      else {
       vSize = VectorSize(v);
       if (vSize != hset->swidth[s])
          HError(7071,"SOutP: incompatible stream widths %d vs %d",
                 vSize,hset->swidth[s]);
-      me = se->spdf.cpdf+1;
-      if (se->nMix == 1){     /* Single Mixture Case */
+      }
+      me = sti->spdf.cpdf+1;
+      if (sti->nMix == 1) {     /* Single Mixture Case */
          mp = me->mpdf; 
          switch (mp->ckind) {
          case DIAGC:    px=DOutP(v,vSize,mp); break;
@@ -5533,13 +5879,18 @@ LogFloat SOutP(HMMSet *hset, int s, Observation *x, StreamElem *se)
          case XFORMC:   px=XOutP(v,vSize,mp); break;
          default:       px=LZERO;
          }
+         px = ApplyDAEM((LogFloat)px);
          return px;
       } else {
          bx = LZERO;                   /* Multi Mixture Case */
-         for (m=1; m<=se->nMix; m++,me++) {
+         for (m=1; m<=sti->nMix; m++,me++) {
             wt=MixLogWeight(hset,me->weight);
             if (wt>LMINMIX) {  
                mp = me->mpdf; 
+               if (!hset->msdflag[s] || vSize == VectorSize(mp->mean)) {
+                  if (vSize == 0) 
+                     px = 0.0;
+                  else {
                switch (mp->ckind) {
                case DIAGC:    px=DOutP(v,vSize,mp); break;
                case INVDIAGC: px=IDOutP(v,vSize,mp); break;
@@ -5548,9 +5899,13 @@ LogFloat SOutP(HMMSet *hset, int s, Observation *x, StreamElem *se)
                case XFORMC:   px=XOutP(v,vSize,mp); break;
                default:       px = LZERO;
                }
+                  }
+                  px = ApplyDAEM((LogFloat)px);
+                  wt = ApplyDAEM((LogFloat)wt);
                bx = LAdd(bx,wt+px);
             }
          }
+      }
       }
       return bx;
    case TIEDHS:
@@ -5560,12 +5915,12 @@ LogFloat SOutP(HMMSet *hset, int s, Observation *x, StreamElem *se)
          HError(7071,"SOutP: incompatible stream widths %d vs %d",
                 vSize,hset->swidth[s]);
       sum = 0.0; tr = hset->tmRecs+s;
-      tm = tr->probs+1; tv = se->spdf.tpdf;
+      tm = tr->probs+1; tv = sti->spdf.tpdf;
       for (m=1; m<=tr->topM; m++,tm++)
          sum += tm->prob * tv[tm->index];
       return (sum>=MINLARG)?log(sum)+tr->maxP:LZERO;
    case DISCRETEHS:
-      uv = se->spdf.dpdf; m = x->vq[s];
+      uv = sti->spdf.dpdf; m = x->vq[s];
       ix = uv[m];
       if (discreteLZero && ix == DLOGZERO) 
          return LZERO;
@@ -5580,15 +5935,16 @@ LogFloat SOutP(HMMSet *hset, int s, Observation *x, StreamElem *se)
 LogFloat POutP(HMMSet *hset,Observation *x, StateInfo *si)
 {
    LogFloat bx;
-   StreamElem *se;
+   StreamElem *ste;
    Vector w;
-   int s,S = x->swidth[0];
+   int s;
+   const int S = x->swidth[0];
    
    if (S==1 && si->weights==NULL)
-      return SOutP(hset,1,x,si->pdf+1);
-   bx=0.0; se=si->pdf+1; w = si->weights;
-   for (s=1;s<=S;s++,se++)
-      bx += w[s]*SOutP(hset,s,x,se);
+      return SOutP(hset,1,x,(si->pdf+1)->info);
+   bx=0.0; ste=si->pdf+1; w = si->weights;
+   for (s=1;s<=S;s++,ste++)
+      bx += w[s]*SOutP(hset,s,x,ste->info);
    return bx;
 }
 
@@ -5598,16 +5954,16 @@ LogFloat OutP(Observation *x, HLink hmm, int state)
 {
    StateInfo *si;
    LogFloat bx;
-   StreamElem *se;
+   StreamElem *ste;
    Vector w;
    int s,S = x->swidth[0];
    
    si = (hmm->svec+state)->info;
    if (S==1 && si->weights==NULL)
-      return SOutP(hmm->owner,1,x,si->pdf+1);
-   bx=0.0; se=si->pdf+1; w = si->weights;
-   for (s=1;s<=S;s++,se++)
-      bx += w[s]*SOutP(hmm->owner,s,x,se);
+      return SOutP(hmm->owner,1,x,si->pdf[1].info);
+   bx=0.0; ste=si->pdf+1; w = si->weights;
+   for (s=1;s<=S;s++,ste++) 
+      bx += w[s]*SOutP(hmm->owner,s,x,ste->info);
    return bx;
 }
 
@@ -5688,17 +6044,19 @@ void FixFullGConst(MixPDF *mp, LogFloat ldet)
 void FixGConsts(HLink hmm)
 {
    int n,m,s,S;
-   StateElem *ste;
+   StateElem *se;
    MixtureElem *me;
-   StreamElem *se;
+   StreamElem *ste;
+   StreamInfo *sti;
    MixPDF *mp;
    
-   ste = hmm->svec+2; S = hmm->owner->swidth[0];
-   for (n=2; n<hmm->numStates; n++,ste++) {
-      se = ste->info->pdf+1;
-      for (s=1; s<=S; s++,se++){
-         me = se->spdf.cpdf+1;
-         for (m=1; m<=se->nMix; m++,me++)
+   se = hmm->svec+2; S = hmm->owner->swidth[0];
+   for (n=2; n<hmm->numStates; n++,se++) {
+      ste = se->info->pdf+1;
+      for (s=1; s<=S; s++,ste++) {
+         sti = ste->info;
+         me = sti->spdf.cpdf+1;
+         for (m=1; m<=sti->nMix; m++,me++)
             if (me->weight > MixFloor(hmm->owner)){
                mp = me->mpdf;
                switch (mp->ckind) {
@@ -5759,7 +6117,7 @@ void FixAllGConsts(HMMSet *hset)
 /* EXPORT-> DurKind2Str: Return string representation of enum DurKind */
 char *DurKind2Str(DurKind dkind, char *buf)
 {
-   static char *durmap[] = {"NULLD","POISSOND","GAMMAD","RELD","GEND"};
+   static char *durmap[] = {"NULLD","POISSOND","GAMMAD","RELD","GEND","GAUSSD"};
    return strcpy(buf,durmap[dkind]);
 }
 
@@ -5791,4 +6149,171 @@ char *BaseClassKind2Str(BaseClassKind bkind, char *buf)
    return strcpy(buf,basemap[bkind]);
 }
 
-/* ------------------------- End of HModel.c --------------------------- */
+/* ------------- for Multi-Space probability Density ------------------ */
+
+/* EXPORT-> CreateMSDInfo: Create MSD infomation of each stream */
+MSDInfo *** CreateMSDInfo(MemHeap *mem, HLink hmm)
+{
+   int i,j,k,nStream;
+   StreamElem *ste;
+   StreamInfo *sti;
+   MSDInfo ***msdInfo;
+   IntVec sorder;
+   Ptr cur_si, pre_si;
+
+   msdInfo = (MSDInfo***)New(mem, (hmm->numStates-2)*sizeof(MSDInfo**));
+   msdInfo -= 2;
+   for (i=2; i<hmm->numStates; i++) {
+      nStream = hmm->owner->swidth[0];
+      msdInfo[i] = (MSDInfo**)New(mem, nStream*sizeof(MSDInfo *));
+      --msdInfo[i];
+      for (j=1; j<=nStream; j++) {
+         msdInfo[i][j] = (MSDInfo*)New(mem, sizeof(MSDInfo));
+         ste = hmm->svec[i].info->pdf+j;
+         sti = ste->info;
+       
+         sorder = CreateIntVec(mem, sti->nMix);
+       
+         msdInfo[i][j]->nSpace = sti->nMix;
+         msdInfo[i][j]->nKindS = 0;
+         msdInfo[i][j]->sorder = sorder;
+         msdInfo[i][j]->next   = NULL;
+       
+         for (k=1; k<=sti->nMix; k++) {
+            sorder[k] = VectorSize(sti->spdf.cpdf[k].mpdf->mean);
+            pre_si = msdInfo[i][j];
+            cur_si = msdInfo[i][j]->next;
+            while (cur_si != NULL) {
+               if (((SpaceInfo *)cur_si)->order == sorder[k]) break;
+               pre_si = cur_si;
+               cur_si = ((SpaceInfo *)pre_si)->next;
+            }
+            if (cur_si == NULL) {
+               msdInfo[i][j]->nKindS++;
+               ((SpaceInfo *)pre_si)->next = (SpaceInfo *)New(mem, sizeof(SpaceInfo));
+               cur_si = ((SpaceInfo *)pre_si)->next;
+               ((SpaceInfo *)cur_si)->order = sorder[k];
+               ((SpaceInfo *)cur_si)->count = 0;
+               ((SpaceInfo *)cur_si)->sindex = CreateIntVec(mem, sti->nMix);
+               ((SpaceInfo *)cur_si)->next = NULL;
+               ZeroIntVec(((SpaceInfo *)cur_si)->sindex);
+            }
+            ((SpaceInfo *)cur_si)->count++;
+            ((SpaceInfo *)cur_si)->sindex[((SpaceInfo *)cur_si)->count] = k;
+         }
+      }
+   }
+   
+   return msdInfo;
+}
+
+/* EXPORT-> SpaceOrder: Count order of Vector which is excepted ignVal */
+int SpaceOrder(Vector vec)
+{
+  int order;
+  
+  order = VectorSize(vec);
+   
+  while (order != 0) {
+     if (vec[order] == ignoreValue) --order;
+     else break;
+  }
+  
+  return order;
+}
+
+/* EXPORT->IncludeSpace: Search space in MSD information */
+int IncludeSpace(MSDInfo *msdInfo, const int order)
+{
+   int i = 1;
+   SpaceInfo *spaceInfo;
+   
+   spaceInfo = msdInfo->next;
+   
+   while (spaceInfo != NULL) {
+      if (spaceInfo->order == order) break;
+      spaceInfo = spaceInfo->next;
+      i++;
+   }
+   
+   if (spaceInfo == NULL) return 0;
+   else return i;
+}
+
+/* EXPORT-> NumNonZeroSpace: Return the number of space which order is not zero */
+int NumNonZeroSpace(StreamInfo *sti) 
+{
+   int m, n;
+
+   for (m=1,n=0; m<=sti->nMix; m++)
+      if (VectorSize(sti->spdf.cpdf[m].mpdf->mean)>0)
+         n++;
+    
+   return n;
+}
+
+/* EXPORT -> ReturnIgnoreValue: Return ignore value for MSD */
+float ReturnIgnoreValue (void)
+{
+   return ignoreValue;
+}
+
+/* -------------- Calculate symmetric KL divergence ------------------- */
+
+/* EXPORT -> CalKLDist: Calculate symmetric KL divergence of single pdf, only support diagonal covariance matrix */
+float CalKLDist(MixPDF * mp1, MixPDF * mp2)
+{
+   int i, vsize;
+   float kld1, kld2, diff;
+
+   if (VectorSize(mp1->mean) != VectorSize(mp2->mean))
+      HError(6611, "CalKLDist: Only support same vector size");
+   if (mp1->ckind != DIAGC || mp2->ckind != DIAGC)
+      HError(6611, "CalKLDist: Only support diagonal covariance matrix");
+
+   vsize = VectorSize(mp1->mean);
+
+   kld1 = kld2 = 0.0;
+   kld1 -= vsize;
+   kld2 -= vsize;
+   for (i = 1; i <= vsize; i++) {
+      diff = (mp2->mean[i] - mp1->mean[i]);
+      diff *= diff;
+      kld1 += mp1->cov.var[i] / mp2->cov.var[i];
+      kld1 += diff / mp2->cov.var[i];
+      kld2 += mp2->cov.var[i] / mp1->cov.var[i];
+      kld2 += diff / mp1->cov.var[i];
+   }
+
+   return (kld1 + kld2) * 0.5f;
+}
+
+/* EXPORT -> CalStrKLDist: Calculate symmetric KL divergence of stream,
+                           only support single mixture distribution and MSD distribution */
+float CalStrKLDist(StreamInfo *sti1, StreamInfo *sti2)
+{
+   MixtureElem *me1, *me2;
+   MixPDF *mp1, *mp2;
+   float kld, wt1, wt2;
+   int m;
+
+   kld = 0.0;
+   me1 = sti1->spdf.cpdf+1;
+   me2 = sti2->spdf.cpdf+1;
+   for (m = 1; m <= sti1->nMix; m++, me1++, me2++) {
+     if (sti1->nMix > 1) {
+         wt1 = me1->weight;
+         wt2 = me2->weight;
+         kld += wt1 * log(wt1) - wt1 * log(wt2);
+         kld += wt2 * log(wt2) - wt2 * log(wt1);
+      }
+
+      mp1 = me1->mpdf;
+      mp2 = me2->mpdf;
+      kld += CalKLDist(mp1, mp2);
+   }
+
+   return kld;
+}
+
+/* ------------------------ End of HModel.c ------------------------ */

@@ -27,8 +27,53 @@
 /*         File: HExactMPE.c   Discriminative training         */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hexactmpe_version = "!HVER!HExactMPE:   3.4.1 [CUED 12/03/09]";
-char *hexactmpe_vc_id = "$Id: HExactMPE.c,v 1.1.1.1 2006/10/11 09:54:57 jal58 Exp $";
+char *hexactmpe_vc_id = "$Id: HExactMPE.c,v 1.13 2011/06/16 04:18:28 uratec Exp $";
 
 /*
     Performs forward/backward alignment
@@ -107,8 +152,12 @@ static int debug_bestcorr = 1000;
 
 
 
-Boolean IsNonSilArc(LArc *larc){ /*returns TRUE if this word is non SENT_START etc. */
-  return (larc->nAlign>1 || (larc->nAlign==1 && !IsSilence(larc->lAlign[0].label->name)));
+Boolean IsNonSilArc(LArc *larc) /*returns TRUE if this word is non SENT_START etc. */
+{
+   if (larc->nAlign>1 || (larc->nAlign==1 && !IsSilence(larc->lAlign[0].label->name))) 
+      return TRUE;
+   else
+      return FALSE;
 }
 int GetNumPhones(LArc *larc){ /*returns num phones in a word...*/
   if(!Quinphone){
@@ -122,14 +171,19 @@ int GetNumPhones(LArc *larc){ /*returns num phones in a word...*/
     return i;
   }
 }
-Boolean NonSil_and_Quinphone_IsStartPhone(LArc *larc, int i){
+Boolean NonSil_and_Quinphone_IsStartPhone(LArc *larc, int i)
+{
   if(!Quinphone){ 
-    return (i < larc->nAlign-1 || !IsSilence(larc->lAlign[larc->nAlign-1].label->name)); /* not end phone or end phone is non-sil. */
+      if (i < larc->nAlign-1 || !IsSilence(larc->lAlign[larc->nAlign-1].label->name)) /* not end phone or end phone is non-sil. */
+         return TRUE;
+      else
+         return FALSE;
   }
   else{
-    return (i % 3 == 0 && i != larc->nAlign-1); /* assuming each has 3 states and a terminal sil/sp [This could be wrong later, but just for simplicity
-						   do it this way now.....]*/
-    
+      if (i % 3 == 0 && i != larc->nAlign-1) /* assuming each has 3 states and a terminal sil/sp [This could be wrong later, but just for simplicity do it this way now.....]*/
+         return TRUE;
+      else 
+         return FALSE;
   }
 }
 
@@ -241,7 +295,8 @@ Boolean GetBestCorrectness /*step correctness by 1 phone.*/
   if(_BestCorr) *_BestCorr = BestCorr;             /* final correctness */
   if(_BestCorrPart) *_BestCorrPart = BestCorrPart; /*contribution from this phone. */
   if(_bestj) *_bestj = bestj;                     /* sausage pos of best contribution */
-  return(bestj!=-1);
+  if(bestj!=-1) return TRUE;
+  else return FALSE;
 }
 float DoCorrectness(FBLatInfo *fbInfo, MemHeap *mem, ArcInfo *ai, float prune, 
                     int beamN/*phones on either side...*/,
@@ -268,7 +323,7 @@ float DoCorrectness(FBLatInfo *fbInfo, MemHeap *mem, ArcInfo *ai, float prune,
     if(locc > prune){   /* ... if above prune threshold then attach the 'cn' structure */
       if(!PhoneMEE && StartOfWord(a)/*expands to a->pos==0*/){  /* This is the MWE case. Create a cn structure for the first phone of the word. */
 	LArc *la = a->parentLarc; 
-	int iword = (int)/*from LabId*/ la->end->word->wordName;
+	int iword = (int)((long)/*from LabId*/ la->end->word->wordName);
 	int id = (a->calcArc ? a->calcArc->id : a->id);
 	HArc *b,*lastArc; int x;
 
@@ -278,7 +333,7 @@ float DoCorrectness(FBLatInfo *fbInfo, MemHeap *mem, ArcInfo *ai, float prune,
 	a->mpe->cn = cn;
 	cn->me_start = a;
 	cn->iphone = iword;
-	cn->IsSilence = IsSilence(a->phone->name); /* First arc of word is sil->silence word. */
+	cn->IsSilence = (Boolean) IsSilence(a->phone->name); /* First arc of word is sil->silence word. */
 	cn->follTrans=cn->precTrans=NULL;
 	cn->scaled_aclike = fbInfo->aInfo->ac[id].aclike * latProbScale;
 	
@@ -320,7 +375,7 @@ float DoCorrectness(FBLatInfo *fbInfo, MemHeap *mem, ArcInfo *ai, float prune,
 	a->mpe->cn = cn;
 	cn->me_start = a;
 	cn->iphone = iphone;
-	cn->IsSilence = IsSilence(a->phone->name);
+	cn->IsSilence = (Boolean) IsSilence(a->phone->name);
 	cn->follTrans=cn->precTrans=NULL;
 
 	/* Following code is the general case, for quinphones as well as triphones. */
@@ -661,7 +716,7 @@ void DoExactCorrectness(FBLatInfo *fbInfo, Lattice *lat){
     w=0;
     for(node=lat->lnodes+0; node->foll; node=node->foll->end)
       if(node->foll->nAlign > 1 ||  (node->foll->nAlign==1 && ! IsSilence(node->foll->lAlign[0].label->name))) /* a word [ not sil. ]...*/
-	iwords[w++][0] = (int)node->foll->end->word->wordName; /* word is at the node at the end of the arc. */
+	iwords[w++][0] = (int)((long)node->foll->end->word->wordName); /* word is at the node at the end of the arc. */
 	 
     for(larc=lat->larcs,a=0;a<lat->na;larc++,a++){   
       if(IsNonSilArc(larc)){  /* Is a word [not sil]*/
@@ -811,7 +866,7 @@ void DoExactCorrectness(FBLatInfo *fbInfo, Lattice *lat){
 #endif /* SUPPORT_EXACT_CORRECTNESS */
 
 
-/* ------------------------------------ Initialisation ------------------------------------ */
+/* ------------------------------------ Initialisation & Reset ------------------------------------ */
 
 /* EXPORT->InitExactMPE: initialise configuration parameters */ 
 void InitExactMPE(void)
@@ -841,5 +896,10 @@ void InitExactMPE(void)
 
 }
 
+/* EXPORT->ResetExactMPE: reset module */
+void ResetExactMPE (void)
+{
+   return;  /* do nothing */
+}
 
-
+/* ------------------------ End of HExactMPE.c --------------------- */

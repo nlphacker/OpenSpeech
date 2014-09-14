@@ -16,8 +16,54 @@
 /*    **     This banner notice must not be removed      **    */
 /*                                                             */
 /* ----------------------------------------------------------- */
-/*         File: HGraf.win32.c:  HGraf for Windows NT          */
+/*         File: HGraf_WIN32.c:  HGraf for Windows NT          */
 /* ----------------------------------------------------------- */
+
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 /* Win32 port Peter Silsbee                                    */
 
 char *hgraf_version = "!HVER!HGraf(NT):   3.4.1 [CUED 12/03/09]";
@@ -105,6 +151,12 @@ void InitGraf(void)
    if (nParm>0){
       if (GetConfInt(cParm,nParm,"TRACE",&i)) trace = i;
    }
+}
+
+/* EXPORT->ResetGraf: reset module */
+void ResetGraf (void)
+{
+   return;  /* do nothing */
 }
 
 /* EXPORT->HGetEvent: return next relevant event in event queue */
@@ -589,7 +641,7 @@ void HFillArc(int x0,int y0,int x1,int y1,int stAngle,int arcAngle)
 void HPrintf(int x, int y, char *format, ...)
 { 
    va_list arg;
-   char s[256];
+   char s[MAXSTRLEN];
    HGDIOBJ oldObject = SelectObject(memDC,theFont);
    HDC dc = GetDC(theWindow);
      
@@ -946,7 +998,7 @@ void RedrawHButton(HButton *btn)
    int pad = 2;
    int x, y, w, h, r, s, pos;
    HPoint poly[9], shad[4];
-   char sbuf[256], nullchar = '\0';
+   char sbuf[MAXSTRLEN], nullchar = '\0';
      
    x = btn->x;   y=btn->y;   w=btn->w;   h=btn->h;   r=3; s=1;
      
@@ -1078,7 +1130,7 @@ void MakeXGraf(char *wname, int x, int y, int w, int h, int bw)
      /* WIN32: bw is ignored. */
 {
    WNDCLASS WindowClass;
-   char sbuf[256], *hgraf = "HGraf";
+   char sbuf[MAXSTRLEN], *hgraf = "HGraf";
    HDC dc;
      
    if (winCreated)
@@ -1195,5 +1247,4 @@ KeyType HGetKeyType(char c)
    }
 }
 
-
-/* ------------------------ End of HGraf.win32.c ------------------------- */
+/* ------------------------ End of HGraf_WIN32.c ------------------- */

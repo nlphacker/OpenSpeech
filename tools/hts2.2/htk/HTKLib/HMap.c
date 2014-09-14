@@ -32,6 +32,51 @@
 /*            File: HMap.c  - MAP Model Updates               */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 /*
   Calculates the MAP estimate of the new model parameters ASSUMING
   that the stats associated with the updates have been stored
@@ -75,7 +120,7 @@ static float minObs  = 0;        /* min observations  to train a model */
 static int maxM;
 static int S;
 static float mapTau     = 20.0;                /* Guides the MAP process */
-
+static Boolean applyVFloor = TRUE;      /* apply variance flooring */
 static ConfParam *cParm[MAXGLOBS];      /* config parameters */
 static int nParm = 0;
 
@@ -84,6 +129,7 @@ void InitMap(void)
 {
    int i;
    double f;
+   Boolean b;
 
    Register(hmap_version,hmap_vc_id);
    nParm = GetConfig("HMAP", TRUE, cParm, MAXGLOBS);
@@ -91,10 +137,35 @@ void InitMap(void)
      if (GetConfInt(cParm,nParm,"TRACE",&i)) trace = i;
      if (GetConfInt(cParm,nParm,"MINEGS",&i)) minEgs = i;
      if (GetConfFlt(cParm,nParm,"MINOBS",&f)) minObs = f;
-     if (GetConfFlt(cParm,nParm,"MINVAR",&f)) minVar = f;
+     if (GetConfFlt(cParm,nParm,"MINVAR",&f)) { minVar = f; applyVFloor = TRUE; }
      if (GetConfFlt(cParm,nParm,"MAPTAU",&f)) mapTau = f;
+     if (GetConfBool(cParm,nParm,"APPLYVFLOOR",&b)) applyVFloor = b;
      if (GetConfFlt(cParm,nParm,"MIXWEIGHTFLOOR",&f)) mixWeightFloor = MINMIX*f;
    }
+}
+
+/* EXPORT->ResetMap: reset the module */
+void ResetMap(void)
+{
+   return;   /* do nothing */
+}
+
+/* EXPORT->SetMapTau: set mapTau from outside */
+void SetMapTau(float tau)
+{
+   mapTau = tau;
+}
+
+/* EXPORT->SetMixWeightFloor: set mixWeightFloor from outside */
+void SetMixWeightFloor(float wFloor)
+{
+   mixWeightFloor = wFloor;
+}
+
+/* EXPORT->SetMinVar: set minVar from outside */
+void SetMinVar(float mVar)
+{
+   minVar = mVar;
 }
 
 /* --------------------------- Model Update --------------------- */
@@ -179,18 +250,18 @@ static void FloorDProbs(ShortVec mixes, int M, float floor)
    }
 }
 
-static void FloorMixtures(HSetKind hskind, StreamElem *ste, int M, float floor)
+static void FloorMixtures(HSetKind hskind, StreamInfo *sti, int M, float floor)
 {
   switch (hskind){
   case DISCRETEHS:
-    FloorDProbs(ste->spdf.dpdf,M,floor);
+    FloorDProbs(sti->spdf.dpdf,M,floor);
     break;
   case TIEDHS:
-    FloorTMMixes(ste->spdf.tpdf,M,floor);
+    FloorTMMixes(sti->spdf.tpdf,M,floor);
     break;
   case PLAINHS:
   case SHAREDHS:
-    FloorMixes(ste->spdf.cpdf+1,M,floor);
+    FloorMixes(sti->spdf.cpdf+1,M,floor);
     break;
   }
 }
@@ -211,8 +282,7 @@ static void UpdateWeights(HMMSet *hset, int px, HLink hmm)
    for (i=2; i<N; i++,se++){
       ste = se->info->pdf+1; 
       for (s=1;s<=S; s++,ste++){
-	vSize = hset->swidth[s];
-	wa = (WtAcc *)ste->hook;
+	wa = (WtAcc *)ste->info->hook;
 	switch (hset->hsKind){
   	case TIEDHS:
 	  M=hset->tmRecs[s].nMix;
@@ -220,20 +290,22 @@ static void UpdateWeights(HMMSet *hset, int px, HLink hmm)
 	case DISCRETEHS:
 	case PLAINHS:
 	case SHAREDHS:
-	  M=ste->nMix;
+	  M=ste->info->nMix;
 	  break;
 	}
 	if (wa != NULL) {
 	  occi = wa->occ; 
 	  if (occi>0) {
-	    me = ste->spdf.cpdf + 1; denom=0;
+	    me = ste->info->spdf.cpdf + 1; denom=0;
 	    for (m=1; m<=M; m++,me++){
+              vSize = VectorSize(me->mpdf->mean);
 	      tmp = me->weight*vSize*mapTau -1;
 	      if (tmp<0) tmp = 0;
 	      denom += tmp;
 	    }
-	    me = ste->spdf.cpdf + 1;
+	    me = ste->info->spdf.cpdf + 1;
 	    for (m=1; m<=M; m++,me++){
+              vSize = VectorSize(me->mpdf->mean);
 	      tmp = me->weight*vSize*mapTau -1;
 	      if (tmp<0) tmp = 0;
 	      x = (tmp + wa->c[m])/(denom + occi); 
@@ -245,34 +317,34 @@ static void UpdateWeights(HMMSet *hset, int px, HLink hmm)
 	      }
 	      switch (hset->hsKind){
 	      case TIEDHS:
-		ste->spdf.tpdf[m] = x;
+		ste->info->spdf.tpdf[m] = x;
 		break;
 	      case DISCRETEHS:
-		ste->spdf.dpdf[m]=DProb2Short(x);
+		ste->info->spdf.dpdf[m]=DProb2Short(x);
 		break;
 	      case PLAINHS:
 	      case SHAREDHS:
-		me=ste->spdf.cpdf+m;
+		me=ste->info->spdf.cpdf+m;
 		me->weight = x;
 		break;
 	      }
 	    }
 	    if (mixWeightFloor>0.0){
-	      FloorMixtures(hset->hsKind,ste,M,mixWeightFloor);		 
+	      FloorMixtures(hset->hsKind,ste->info,M,mixWeightFloor);		 
 	    }
 	    /* Force a normalisation becomes of weird zeroing .... */
 	    if ((hset->hsKind == PLAINHS) || (hset->hsKind == SHAREDHS)) {
-	      me = ste->spdf.cpdf + 1; x=0;
+	      me = ste->info->spdf.cpdf + 1; x=0;
 	      for (m=1; m<=M; m++,me++)
 		x += me->weight;
 	      if (x>1.001)
 		HError(-1,"Updating Weights, sum too large (%f)\n",x);
-	      me = ste->spdf.cpdf + 1;
+	      me = ste->info->spdf.cpdf + 1;
 	      for (m=1; m<=M; m++,me++)
 		me->weight /= x;	      
 	    } 
 	  }
-	  ste->hook = NULL;
+	  ste->info->hook = NULL;
 	}
       }
    }
@@ -294,11 +366,12 @@ static int UpdateMeans(HMMSet *hset, int px, HLink hmm)
    for (i=2; i<N; i++,se++){
       ste = se->info->pdf+1; 
       for (s=1;s<=S;s++,ste++){
-         vSize = hset->swidth[s];
-         me = ste->spdf.cpdf + 1; M = ste->nMix;
+         me = ste->info->spdf.cpdf + 1; 
+         M = ste->info->nMix;
          for (m=1;m<=M;m++,me++)
             if (MixWeight(hset,me->weight) > MINMIX){
                mean = me->mpdf->mean;
+               vSize = VectorSize(mean);
                ma = GetHook(mean);
                if (ma != NULL){
                   occim = ma->occ;
@@ -335,20 +408,21 @@ static void UpdateVars(HMMSet *hset, int px, HLink hmm)
    for (i=2; i<N; i++,se++){
       ste = se->info->pdf+1;
       for (s=1;s<=S;s++,ste++){
-         vSize = hset->swidth[s];
          minV = vFloor[s];
-         me = ste->spdf.cpdf + 1; M = ste->nMix;
+         me = ste->info->spdf.cpdf + 1; 
+         M = ste->info->nMix;
          for (m=1;m<=M;m++,me++)
 	   if (MixWeight(hset,me->weight) > MINMIX){
                cov = me->mpdf->cov;
                va = GetHook(cov.var);
                mean = me->mpdf->mean;
+               vSize = VectorSize(mean);
                ma = GetHook(mean);
                if (va != NULL){
                   occim = va->occ;
                   mixFloored = FALSE;
                   if (occim > 0.0){
-		    shared=(GetUse(cov.var)>1 || ma==NULL || ma->occ<=0.0);
+                     shared = (GetUse(cov.var)>1 || ma==NULL || ma->occ<=0.0) ? TRUE : FALSE;
                      if (me->mpdf->ckind==DIAGC) {
 		         var = cov.var;
 			 for (k=1; k<=vSize; k++){
@@ -358,7 +432,7 @@ static void UpdateVars(HMMSet *hset, int px, HLink hmm)
 			     muDiffk = 2*dmu*ma->mu[k] - dmu*dmu*occim;
 			   }
                            x = (mapTau*var[k]  + va->cov.var[k] - muDiffk) / (mapTau + occim);
-			   if (x<minV[k]) {
+                           if (applyVFloor && x<minV[k]) {
                              x = minV[k];
                               nFloorVar++;
                               mixFloored = TRUE;
@@ -411,7 +485,8 @@ void MAPUpdateModels(HMMSet *hset, UPDSet uFlags)
 {
   HMMScanState hss;
   HLink hmm;
-  int px,n,nmapped=0,totM;
+  int px,nmapped=0,totM;
+  long n;
 
   if (hset->logWt == TRUE) HError(999,"HMap: requires linear weights");
 
@@ -429,7 +504,7 @@ void MAPUpdateModels(HMMSet *hset, UPDSet uFlags)
   px=1;
   do {   
     hmm = hss.hmm;
-    n = (int)hmm->hook;
+    n = (long)hmm->hook;
     if (n<minEgs && !(trace&T_UPD))
       HError(-2331,"UpdateModels: %s[%d] copied: only %d egs\n",
 	     HMMPhysName(hset,hmm),px,n);
@@ -457,4 +532,9 @@ void MAPUpdateModels(HMMSet *hset, UPDSet uFlags)
 	     nFloorVar,nFloorVarMix);
     fflush(stdout);
   }
+   
+  /* Reset vfloor */
+  ResetVFloor(hset,vFloor);
 }
+
+/* ------------------------ End of HMap.c -------------------------- */

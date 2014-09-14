@@ -19,8 +19,53 @@
 /*     File: HParse.c: HParse based word-network definition    */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hparse_version = "!HVER!HParse:   3.4.1 [CUED 12/03/09]";
-char *hparse_vc_id = "$Id: HParse.c,v 1.1.1.1 2006/10/11 09:55:01 jal58 Exp $";
+char *hparse_vc_id = "$Id: HParse.c,v 1.10 2011/06/16 04:18:30 uratec Exp $";
 
 /* The HParse program reads in a set of HTK  HParse rewrite rules
    (as used in HTK V1.x) and writes out an HTK V2 lattice and
@@ -189,6 +234,7 @@ void SetConfParms(void)
 
 void ReportUsage(void)
 {
+   printf("\nModified for HTS\n");
    printf("\nUSAGE: HParse [options] netFile latFile\n\n");
    printf(" Option                                       Default\n\n");
    printf(" -b      output lattice in binary             ascii\n");   
@@ -263,6 +309,14 @@ int main(int argc, char *argv[])
    if (trace&T_HPNET) 
       PrintHParseNetwork(&theNet);
    ConvertHParseNetwork(&theNet,latFn,dictFn);
+
+   ResetNet();
+   ResetDict();
+   ResetMath();
+   ResetLabel();
+   ResetMem();
+   ResetShell();
+   
    Exit(0);
    return (0);          /* never reached -- make compiler happy */
 }
@@ -379,7 +433,7 @@ static void PrModelName(Link p)
       strcpy(name,"????");
    else
       strcpy(name,p->modelName->name);
-   printf("%s[%03d] ",name, ((int)p % 4000) / 4 );
+   printf("%s[%03ld] ",name, ((long)p % 4000) / 4 );
 }
 
 /* PrintLinkSet: print first n slots of given LinkSet to stdout */
@@ -927,7 +981,7 @@ static Boolean SameLinks(int a1, int a2)
 
 static Boolean IsJoined(int a, int b)
 {
-   return (jmat[a][b/8] & (1 <<(b&7))) != 0;
+   return ( ((jmat[a][b/8] & (1 <<(b&7))) != 0) ? TRUE:FALSE );
 }
 
 static int NumJSuccs(int a)
@@ -1714,17 +1768,17 @@ static Boolean CanCompact(Link p)
 
    for (i=1; (i <= p->succ->numLinks) && ok ; i++) {
       succNode = p -> succ->links[i];
-      ok = (succNode -> modelName != NULL);
+      ok = (succNode -> modelName != NULL) ? TRUE:FALSE;
    }
    if (!ok) {
       ok = TRUE;    
       for (i=1; (i <= p->pred->numLinks) && ok ; i++) {
          predNode = p -> pred->links[i];
-         ok = (predNode -> modelName != NULL);
+         ok = (predNode -> modelName != NULL) ? TRUE:FALSE;
       }
    }
    if (!ok)
-      ok = ((p->succ->numLinks == 1) && (p->pred->numLinks == 1));
+      ok = ((p->succ->numLinks == 1) && (p->pred->numLinks == 1)) ? TRUE:FALSE;
    return ok;
 }
 
@@ -2000,7 +2054,7 @@ void LabelInternal(Link p)
       }  
    }
    else if ((ni->nType != wdEnd) && (ni->nType != wdInternal))
-      HError(3131,"LabelInternal: incorrect WD_BEGIN/WD_END node connection, node %d is %d",((int)p % 4000) / 4,ni->nType);
+      HError(3131,"LabelInternal: incorrect WD_BEGIN/WD_END node connection, node %ld is %d",((long)p % 4000) / 4,ni->nType);
 }
 
 /* FindNodeTypes: mark each node as wdInternal or wdExternal */
@@ -2326,4 +2380,6 @@ static void ConvertHParseNetwork(HPNetwork *theNet, char *latFn, char *dictFn)
    SaveLattice(lat,latFn,format);
 }
 
-/* ------------------- End of HParse.c --------------------------------- */
+/* ----------------------------------------------------------- */
+/*                      END:  HParse.c                         */
+/* ----------------------------------------------------------- */

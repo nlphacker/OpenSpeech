@@ -27,6 +27,51 @@
 /*       File: HLat.c:  Lattice Manipulation                   */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 /*#### todo:
 
      - implement lattice oracle WER calculation
@@ -79,7 +124,9 @@ static Boolean compressMerge = TRUE; /* compressing lattice scores when merging 
 
 static char *llfExt = "LLF";    /* extension for LLF lattice files */
 
+#ifndef NO_LAT_LM
 static MemHeap slaHeap, slnHeap;/* MHEAPs for use in LatExpand() */
+#endif
 
 /* --------------------------- Prototypes ---------------------------- */
 
@@ -289,6 +336,18 @@ void InitLat(void)
 #endif
 }
 
+
+/* EXPORT->ResetLat: reset the module */
+void ResetLat (void)
+{
+#ifndef NO_LAT_LM
+   ResetHeap(&slnHeap);
+   ResetHeap(&slaHeap);
+#endif
+   ResetHeap(&llfHeap);
+   
+   return;
+}
 
 /* --------------------------- Lattice processing ------------------- */
 
@@ -904,7 +963,7 @@ void CalcStats (Lattice *lat)
       ln = topOrder[i];
 
       /* count words */
-      ln->word->aux = (Ptr) (((int)ln->word->aux) + 1);
+      ln->word->aux = (Ptr) (((long)ln->word->aux) + 1);
 
       /* count incoming and outgoing arcs */
       d = 0;
@@ -1789,7 +1848,7 @@ void ApplyNGram2LabLat(Lattice *lat, LModel *lm)
       fprintf(stdout, "\n");
       fprintf(stdout, "\n Vocab entries: ");
       for (j = 0; j < lat->nn - 2; j++) {
-         fprintf(stdout, "%s ", lm->data.ngram->wdlist[(int) revlab[j]->aux]->name);
+         fprintf(stdout, "%s ", lm->data.ngram->wdlist[(long) revlab[j]->aux]->name);
       }
       fprintf(stdout, "\n\n");
       fflush(stdout);
@@ -1819,3 +1878,5 @@ void ApplyNGram2LabLat(Lattice *lat, LModel *lm)
    Dispose(lat->heap, revlab);
 }
 #endif
+
+/* ------------------------ End of HLat.c -------------------------- */

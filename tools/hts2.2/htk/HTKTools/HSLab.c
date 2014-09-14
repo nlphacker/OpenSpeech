@@ -32,8 +32,53 @@
 /*         File: HSLab.c:   The Speech Label Editor            */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hslab_version = "!HVER!HSLab:   3.4.1 [CUED 12/03/09]";
-char *hslab_vc_id = "$Id: HSLab.c,v 1.1.1.1 2006/10/11 09:55:01 jal58 Exp $";
+char *hslab_vc_id = "$Id: HSLab.c,v 1.10 2011/06/16 04:18:30 uratec Exp $";
 
 /* 
    --------------------------------------------------------------
@@ -229,6 +274,7 @@ static char spcl_str[SLEN] = "Command";   /* special button string */
 
 void ReportUsage(void)
 {
+   printf("\nModified for HTS\n");
    printf("\nUSAGE: HSLab [options] waveformFile\n\n");
    printf(" Option                                       Default\n\n");
    printf(" -a      auto-increment global label          off\n");
@@ -322,6 +368,15 @@ int main(int argc, char *argv[])
       strcpy(spfn, ospfn=GetStrArg());
    Initialise(); LoadFiles(); hRedrawWindow(); 
    DecodeCommands(); TermHGraf();
+   
+   ResetGraf();
+   ResetAudio();
+   ResetLabel();
+   ResetWave();
+   ResetMath();
+   ResetMem();
+   ResetShell();
+   
    Exit(0);
    return (0);          /* never reached -- make compiler happy */
 }
@@ -381,7 +436,7 @@ Wave Record(long *nSamples, HTime *sampPeriod)
    Boolean done;
    HEventRec hev;
    BarType tm, vu;
-   char sbuf[256];
+   char sbuf[MAXSTRLEN];
    long i, chunk;
    long nWaiting, nToRecord;
    SampleType *buf, smin, smax;
@@ -617,7 +672,7 @@ void PlotGStripes(int x, int y, int width, int height)
 void PrintMsg(RectWin *win, char *msg)
 {
    int sx, sy, pos, pad = 4;
-   char sbuf[256];
+   char sbuf[MAXSTRLEN];
 
    HSetXMode(GCOPY);
    DrawRectWin(win);
@@ -745,7 +800,7 @@ LLink GetLabT(LabList *ll, long t)
 /* Intersect: returns TRUE if the regions (a,b):{a<=b} and (a1,b1):{a1<=b1} intersect */
 Boolean Intersect(long a, long b, long a1, long b1)
 {
-   return !(((a1 < a) && (b1 < a)) || ((a1 >= b) && (b1 >= b)));
+   return ( (!(((a1 < a) && (b1 < a)) || ((a1 >= b) && (b1 >= b))) ) ? TRUE:FALSE);
 }
 
 
@@ -949,7 +1004,7 @@ void InvertRegion(RectWin *win, int a, int b)
    HSetXMode(GINVERT);
    HFillRectangle(a, win->y+1, b, win->y + win->h - 1);
    HSetXMode(GCOPY);
-   regnMarked = !regnMarked;
+   regnMarked = (!regnMarked) ? TRUE:FALSE;
    if (wasOn) WPtrOn();
 }
 
@@ -1111,7 +1166,7 @@ void MouseMark(int x, int *markA, int *markB)
    mmWPos = -1;
    do {
       hev = HGetEvent(TRUE, Drag);
-      done = (hev.event==HMOUSEUP);
+      done = (hev.event==HMOUSEUP) ? TRUE:FALSE;
    } while (!done);
    if (mmWPos >=0) PlotWaveWinPtr(mmWPos);
    *markB = hev.x;
@@ -1200,7 +1255,7 @@ Boolean GetString(RectWin *win, char *str, short minlen, short maxlen)
       }
    } while (!done);
    DrawRectWin(win);
-   return (!hitesc) && (strlen(str) > minlen); 
+   return ( ((!hitesc) && (strlen(str) > minlen) ) ? TRUE:FALSE); 
 }
 
 /* FileExists: check to see if a file exsists */
@@ -1303,7 +1358,7 @@ void RecordOp(OpType op, LLink p)
 void UndoOp(void)
 {
    Label p;
-   char sbuf[256];
+   char sbuf[MAXSTRLEN];
 
    if (undoEmpty)
       return;
@@ -1583,9 +1638,9 @@ void DoPlay(void)
 /* DoSpecial: execute external command if environment variable set */ 
 void DoSpecial(void)
 {
-   char strbuf[256];
-   char cmdstr[256];
-   char cmdfn[256];
+   char strbuf[MAXSTRLEN];
+   char cmdstr[MAXSTRLEN];
+   char cmdfn[MAXSTRLEN];
    
    if (CommandSet(HSLabCmd, cmdstr)){
       strcpy(cmdfn, PathOf(spfn, strbuf));
@@ -1683,7 +1738,7 @@ void IncLabStr(void)
       }
    if (isNum){    
       for (q=p+1; *q != '\0'; q++)
-         if (!isdigit((int) *q)) break;
+         if (!isdigit(*q)) break;
       num = atoi(p) +1; sprintf(nbuf,"%d",num);
       *p = '\0'; 
       strcpy(labstr,sbuf); strcat(labstr,nbuf); strcat(labstr,q);
@@ -1921,7 +1976,7 @@ void DoSave(void)
 /* CheckForSave: check to see if changes have to be saved */
 void CheckForSave(void)
 {
-   char sbuf[255], *prompt = "Save label file (Y/N): ", c;
+   char sbuf[MAXSTRLEN], *prompt = "Save label file (Y/N): ", c;
    Boolean is0;
 
    if (!labsModified)
@@ -1929,7 +1984,7 @@ void CheckForSave(void)
    do { 
       strcpy(sbuf, prompt);
       do 
-         is0 = !GetString(&io_Win, sbuf, strlen(prompt), MAX_LAB_LEN); 
+         is0 = (!GetString(&io_Win, sbuf, strlen(prompt), MAX_LAB_LEN)) ? TRUE:FALSE; 
       while (is0);
       c = sbuf[strlen(prompt)];
    } while ((c!='y') && (c!='Y') && (c!='n') && (c!='N'));
@@ -1982,7 +2037,7 @@ void CreateButtons(void)
    int btn_area_x;
    int btn_area_y;
    int x, y, w;
-   char cmdstr[256];
+   char cmdstr[MAXSTRLEN];
    HButton *btn;
 
    btn_area_w = (int) (WIDTH *BTN_AREA_W);

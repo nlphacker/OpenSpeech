@@ -26,8 +26,53 @@
 /*         File: HArc.c   Forward Backward routines        */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *arc_version = "!HVER!HArc:   3.4.1 [CUED 12/03/09]";
-char *arc_vc_id = "$Id: HArc.c,v 1.1.1.1 2006/10/11 09:54:57 jal58 Exp $";
+char *arc_vc_id = "$Id: HArc.c,v 1.11 2011/06/16 04:18:28 uratec Exp $";
 
 
 /*
@@ -210,8 +255,8 @@ HArc *CreateArc(MemHeap *mem, Lattice *lat, LArc *la, int start_time, int pos, i
 
 void PrintArc(FILE *f, HArc *a){
    ArcTrans *at;
-   fprintf(f, "Arc{ id=%d, pos=%d, parentLarc=0x%x, t_start=%f, t_end=%f",
-           a->id, a->pos, (int)a->parentLarc, (float)a->t_start, (float)a->t_end);
+   fprintf(f, "Arc{ id=%d, pos=%d, parentLarc=0x%lx, t_start=%f, t_end=%f",
+           a->id, a->pos, (long)a->parentLarc, (float)a->t_start, (float)a->t_end);
    if(a->prec && a->t_end > a->prec->t_end){
       printf("(>%f by %E)\n", (float)a->prec->t_end, (float)(a->t_end - a->prec->t_end));
       if(a->t_end + 0.0 == a->prec->t_end){ printf("****\n"); }
@@ -282,7 +327,7 @@ void SortArcs( ArcInfo *aInfo )
    for ( al = arclist ; al != ale ; ++al )
       {
          (*al)->prec = prec ; prec = *al ; 
-         (*al)->foll = *(al+1) ; 
+         (*al)->foll = (al+1 != ale) ? *(al+1) : NULL; 
          (*al)->id = id++ ;
       }
 
@@ -455,7 +500,7 @@ void ArcFromLat(ArcInfo *aInfo, HMMSet *hset){
                ac->alphat=ac->alphat1=NULL;ac->betaPlus=NULL;ac->otprob=NULL;
             } else {
                int j,s,SS,S = hset->swidth[0]; /* probably just 1. */
-	       StreamElem *ste;
+               StreamInfo *sti;
 
 	       SS=(S==1)?1:S+1;
                ac->SP=FALSE;
@@ -468,19 +513,21 @@ void ArcFromLat(ArcInfo *aInfo, HMMSet *hset){
 		  ac->otprob[t] = ((float***)New(aInfo->mem,(ac->Nq-2)*sizeof(float **)))-2;
 		  for(j=2;j<ac->Nq;j++){
                      ac->otprob[t][j] = (float**)New(aInfo->mem,SS*sizeof(float*)); /*2..Nq-1*/
-		     ste = ac->hmm->svec[j].info->pdf+1;
+                     sti = ac->hmm->svec[j].info->pdf[1].info;
 		     if (S==1) {
 		        ac->otprob[t][j][0] = NULL;
 		     } else {
 		        ac->otprob[t][j][0] = (float*)New(aInfo->mem,sizeof(float));
 			ac->otprob[t][j][0][0] = LZERO;
-			for (s=1;s<=S;s++,ste++)
+			for (s=1;s<=S;s++) {
+                          sti = ac->hmm->svec[j].info->pdf[s].info;
 			  ac->otprob[t][j][s] = NULL;
 		     }
                   }
                }	
             }
          }
+      }
       }
       for(arc=aInfo->start;arc;arc=arc->foll)  if(arc->calcArc) arc->ac = arc->calcArc->ac;
 
@@ -565,7 +612,7 @@ Boolean LatInLat(Lattice *numLat, Lattice *denLat){
 
 
 
-/* ------------------------------------ Initialisation ------------------------------------ */
+/* ------------------------------------ Initialisation & Reset ------------------------------------ */
 
 /* EXPORT->InitArc: initialise configuration parameters */
 void InitArc(void)
@@ -583,3 +630,10 @@ void InitArc(void)
    }
 }
 
+/* EXPORT->ResetArc: reset arc module */
+void ResetArc (void)
+{
+   return;
+}
+
+/* ------------------------ End of HArc.c -------------------------- */

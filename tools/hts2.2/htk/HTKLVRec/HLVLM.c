@@ -27,8 +27,53 @@
 /*         File: HLVLM.c Language model for HTK LV Decoder     */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hlvlm_version = "!HVER!HLVLM:   3.4.1 [GE 12/03/09]";
-char *hlvlm_vc_id = "$Id: HLVLM.c,v 1.1.1.1 2006/10/11 09:54:55 jal58 Exp $";
+char *hlvlm_vc_id = "$Id: HLVLM.c,v 1.9 2011/02/10 08:23:06 uratec Exp $";
 
 #include "HShell.h"
 #include "HMem.h"
@@ -237,7 +282,7 @@ static void GetLMEntry (FSLM_ngram *nglm, Source *src, Boolean bin, int n, LMId 
                         LMId word2lmid(FSLM_ngram *, char*), 
                         LogFloat *prob, Boolean *hasBO, LogFloat *bo, Boolean *hasUNK)
 {
-   unsigned char size, flags;
+   unsigned char size, flags='\0';
    char buf[MAXSTRLEN];
    int i;
    unsigned short us;
@@ -311,12 +356,12 @@ static void GetLMEntry (FSLM_ngram *nglm, Source *src, Boolean bin, int n, LMId 
 static void ReadARPAngram (FSLM_ngram *nglm, Source *lmSrc, int n, int count, Boolean bin,
                            Vocab *vocab)
 {
-   LogFloat prob, bo;
+   LogFloat prob, bo=LZERO;
    Boolean hasBO, hasUNK;
    int i;
    LMId ndx[NSIZE+1];
    NEntry *ne, *le = NULL;
-   SEntry *tmpSE, *curtmpSE;
+   SEntry *tmpSE, *curtmpSE=NULL;
    int ntmpSE = 0;
    LMId (*word2lmid)(FSLM_ngram *, char *);
    Word word;
@@ -934,7 +979,7 @@ SEntry *FindMinSEntry (SEntry *se, int nse, PronId minPron)
 */
 static SEntry *FindMinSEntryP (SEntry *low, SEntry *hi, PronId minPron)
 {
-  SEntry *mid;
+  SEntry *mid=NULL;
 
   if (minPron > hi->word)
     return NULL;
@@ -1044,7 +1089,7 @@ LogFloat LMLookAhead_2gram (FSLM *lm, LMState src, PronId minPron, PronId maxPro
 LogFloat LMLookAhead_3gram (FSLM *lm, LMState src, PronId minPron, PronId maxPron)
 {
    NEntry *ne_tg, *ne_bg;
-   SEntry *se_tg, *seLast_tg, *se_bg, *seLast_bg;
+   SEntry *se_tg=NULL, *seLast_tg=NULL, *se_bg=NULL, *seLast_bg=NULL;
    PronId p, pend;
    NGLM_Prob *unigrams;
    NGLM_Prob maxScore = NGLM_PROB_LZERO;
@@ -1511,7 +1556,7 @@ FSLM_ngram *CreateBoNGram (MemHeap *heap, int vocSize, int counts[NSIZE])
 
 FSLM_LatArc *FindMinLatArc (FSLM_LatArc *low, FSLM_LatArc *hi, PronId minPron)
 {
-   FSLM_LatArc *mid;
+   FSLM_LatArc *mid=NULL;
 
    if (minPron > hi->word)
       return NULL;

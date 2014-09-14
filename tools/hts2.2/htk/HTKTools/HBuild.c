@@ -19,8 +19,53 @@
 /*     File: HBuild.c:  Word-Lattice Building                  */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hbuild_version = "!HVER!HBuild:   3.4.1 [CUED 12/03/09]";
-char *hbuild_vc_id = "$Id: HBuild.c,v 1.1.1.1 2006/10/11 09:54:59 jal58 Exp $";
+char *hbuild_vc_id = "$Id: HBuild.c,v 1.12 2011/06/16 04:18:29 uratec Exp $";
 
 /* The HBuild program takes input files in a number of different
    formats and constructs suitable HTK word lattice files.
@@ -85,6 +130,7 @@ void SetConfParms(void)
 
 void ReportUsage(void)
 {
+   printf("\nModified for HTS\n");
    printf("\nUSAGE: HBuild [options] wordList latFile\n\n");
    printf(" Option                                       Default\n\n");
    printf(" -b      binary lattice output                ASCII\n");
@@ -261,6 +307,15 @@ int main(int argc, char *argv[])
    default:
       HError(3001,"Only Bigram LMs / multiLats currently implemented");
    }
+
+   ResetLM();
+   ResetNet();
+   ResetDict();
+   ResetMath();
+   ResetLabel();
+   ResetMem();
+   ResetShell();
+
    Exit(0);
    return (0);          /* never reached -- make compiler happy */
 }
@@ -415,7 +470,7 @@ Lattice *ProcessBoBiGram(MemHeap *latHeap, Vocab *voc, NGramLM *nLM)
                 nLM->wdlist[i]->name);
       ln = lat->lnodes+j;
       ln->word = wd; ln->n=0; ln->v=0;
-      wd->aux = (Ptr) j;
+      wd->aux = (Ptr)((long) j);
       if (nLM->wdlist[i] != enterId) {
          la = lat->larcs+k;
          la->start = lat->lnodes;
@@ -436,7 +491,7 @@ Lattice *ProcessBoBiGram(MemHeap *latHeap, Vocab *voc, NGramLM *nLM)
       ndx[0] = i;
       ne = GetNEntry(nLM,ndx,FALSE);
       fromWd =  GetWord(voc,nLM->wdlist[i],FALSE);
-      fromNode =  lat->lnodes+((int) fromWd->aux);
+      fromNode =  lat->lnodes+((long) fromWd->aux);
       la->start = fromNode;    /* backoff weight */
       la->end = lat->lnodes;
       if (ne==NULL) la->lmlike = 0.0;
@@ -447,7 +502,7 @@ Lattice *ProcessBoBiGram(MemHeap *latHeap, Vocab *voc, NGramLM *nLM)
             if ((nLM->wdlist[se->word] == unknownId) && zapUnknown)
                continue;
             toWd = GetWord(voc,nLM->wdlist[se->word],FALSE);
-            toNode = lat->lnodes+((int) toWd->aux);
+            toNode = lat->lnodes+((long) toWd->aux);
             if (nLM->wdlist[se->word] != enterId) {
                la->start = fromNode;
                la->end = toNode;
@@ -493,7 +548,7 @@ Lattice *ProcessMatBiGram(MemHeap *latHeap, Vocab *voc, MatBiLM *bg)
                 bg->wdlist[i]->name);
       ln = lat->lnodes+j;
       ln->word = wd; ln->n=0; ln->v=0;
-      wd->aux = (Ptr) j;
+      wd->aux = (Ptr)((long) j);
       j++;
    }
    lat->nn = j;
@@ -502,12 +557,12 @@ Lattice *ProcessMatBiGram(MemHeap *latHeap, Vocab *voc, MatBiLM *bg)
    for (i=1,j=0; i < bg->numWords; i++) {
       row = bg->bigMat[i];
       fromWd =  GetWord(voc,bg->wdlist[i],FALSE);
-      fromNode =  lat->lnodes+((int) fromWd->aux);
+      fromNode =  lat->lnodes+((long) fromWd->aux);
       if (i == skipWord) continue;
       for (j=2; j <= (i==1?bg->numWords-1:bg->numWords); j++) {
          if (j == skipWord) continue;
          toWd = GetWord(voc,bg->wdlist[j],FALSE);
-         toNode = lat->lnodes+((int) toWd->aux);
+         toNode = lat->lnodes+((long) toWd->aux);
          la->start = fromNode;
          la->end = toNode;
          la->lmlike = row[j];
@@ -578,7 +633,7 @@ Boolean SkipHeader(FILE *f)
       ch = getc(f);
    if (ch == '/') {
       ch = getc(f);      
-      inComment = (ch == '*');
+      inComment = (ch == '*') ? TRUE:FALSE;
       if (!inComment)
          HError(3040,"SkipHeader: / char illegal if not in comment or delimiter");  
       else
@@ -586,7 +641,7 @@ Boolean SkipHeader(FILE *f)
             ch = getc(f);
             if (ch == '*') {
                ch = getc(f);
-               inComment = (ch != '/');
+               inComment = (ch != '/') ? TRUE:FALSE;
             }
          }
    }     
@@ -632,7 +687,7 @@ void NumberEntries(WPGrammar *wpg, Word sentEnd)
 void ReadWPGrammar(WPGrammar *wpg, Vocab * voc, char *gramFn)
 {
    FILE *gf;
-   char buf[255];
+   char buf[MAXSTRLEN];
    int ch;
    Word newWord;
    GramEntry *newGram = NULL;
@@ -650,7 +705,7 @@ void ReadWPGrammar(WPGrammar *wpg, Vocab * voc, char *gramFn)
       HError(3040,"ReadWPGrammar: Unexpected eof while reading %s", gramFn);
    do {
       ch = getc(gf);
-      newEntry = (ch == '>');
+      newEntry = (ch == '>') ? TRUE:FALSE;
       if (wpg->nwords == 0 && !newEntry)
          HError(3040,"ReadWPGrammar: > expected while reading %s", gramFn);
       if (!ReadLabel(gf,buf)) {
@@ -747,8 +802,6 @@ Lattice *ProcessWordPair(MemHeap *latHeap, Vocab *voc, char *gramFn)
    return lat;
 }
 
-
-/* ------------------- End of HBuild.c --------------------------------- */
-
-
-
+/* ----------------------------------------------------------- */
+/*                      END:  HBuild.c                         */
+/* ----------------------------------------------------------- */

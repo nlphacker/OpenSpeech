@@ -19,8 +19,53 @@
 /*      File: HLEd.c: Edit label file(s)                       */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hled_version = "!HVER!HLEd:   3.4.1 [CUED 12/03/09]";
-char *hled_vc_id = "$Id: HLEd.c,v 1.1.1.1 2006/10/11 09:55:01 jal58 Exp $";
+char *hled_vc_id = "$Id: HLEd.c,v 1.13 2011/06/16 04:18:30 uratec Exp $";
 
 #include "HShell.h"
 #include "HMem.h"
@@ -142,6 +187,7 @@ void Summary(void)
 
 void ReportUsage(void)
 {
+   printf("\nModified for HTS\n");
    printf("\nUSAGE: HLEd [options] edCmdFile labFiles...\n\n");
    printf(" Option                                       Default\n\n");
    printf(" -b      suppress boundary times              off\n");
@@ -275,6 +321,14 @@ int main(int argc, char *argv[])
    }
    ListFinds();
    if (newLabs != NULL) fclose(newLabs);
+
+   ResetDict();
+   ResetLabel();
+   ResetWave();
+   ResetMath();
+   ResetMem();
+   ResetShell();
+   
    Exit(0);
    return (0);          /* never reached -- make compiler happy */
 }
@@ -302,9 +356,9 @@ void Initialise(void)
    SetConfParms();
    asterix = GetLabId("*",TRUE);
    for (i=1;i<=99;i++) {
-      sprintf(buf,"%d",i);
+      sprintf(buf,"%ld",(long)i);
       labid=GetLabId(buf,TRUE);
-      labid->aux=(void*) i;
+      labid->aux=(void*)((long) i);
    }
    CreateHeap(&permHeap, "permHeap", MSTAK, 1, 1.2, 512, 4096);
    CreateHeap(&tempHeap, "tempHeap", MSTAK, 1, 1.2, 4096, 8192);
@@ -553,11 +607,11 @@ void PrintScript(char *scriptFN)
          printf(" ]\n");
          break;
       case SETLEV:
-         printf("Set Level to %d\n",(int)i->cmd.args[0]->aux);
+         printf("Set Level to %d\n",(int)((long)i->cmd.args[0]->aux));
          break;
       case DELLEV:
          if (i->cmd.nArgs==1)
-            printf("Delete Level %d\n",(int)i->cmd.args[0]->aux);
+            printf("Delete Level %d\n",(int)((long)i->cmd.args[0]->aux));
          else
             printf("Delete Current Level\n");
          break;
@@ -729,7 +783,7 @@ void ReadScript(char *scriptFn)
       case SETLEV:
          i->cmd.nArgs = ReadIdList(&src,i->cmd.args);
          if (i->cmd.nArgs!=1 || 
-             (n=(int)i->cmd.args[0]->aux)<1 || n>99 )
+             (n=(int)((long)i->cmd.args[0]->aux))<1 || n>99 )
             HError(1230,"ReadScript: ML must have 1 arg between 1 and 99");          
          break;   
       case DELLEV:
@@ -737,7 +791,7 @@ void ReadScript(char *scriptFn)
          if (i->cmd.nArgs>1)
             HError(1230,"ReadScript: DL can have at most 1 arg");
          if (i->cmd.nArgs==1 && 
-             ((n=(int)i->cmd.args[0]->aux)<1 || n>99) )
+             ((n=(int)((long)i->cmd.args[0]->aux))<1 || n>99) )
             HError(1230,"ReadScript: DL arg must be between 1 and 99");           
          break;   
       case SORT:
@@ -849,7 +903,7 @@ Boolean IsSame(LabId a, LabId b)
       strcpy(buf,a->name); TriStrip(buf); a = GetLabId(buf,TRUE);
       strcpy(buf,b->name); TriStrip(buf); b = GetLabId(buf,TRUE);
    }
-   return a==b;
+   return ((a==b) ? TRUE:FALSE);
 }
 
 /* IsInIdList: return true if id is in idlist */
@@ -1372,7 +1426,7 @@ void DeleteLevel(Transcription *ltr,int lev)
 void EditFile(char *labfn)
 {
    ScriptItem *i;
-   char outfn[255];
+   char outfn[MAXFNAMELEN];
    int m,d,r,c,a,clev,nlev,list;
    Transcription *ct,*levs,*at;
    LabList *ll,*rl;
@@ -1405,7 +1459,7 @@ void EditFile(char *labfn)
          if (i->cmd.op != CHANGE || i==script) /* terminate any pending */
             ChangeOp(NULL, NULL);     /* sequence of CH(ange operations */
          if (i->cmd.op == TRIST)
-            triStrip = !triStrip;
+            triStrip = (!triStrip) ? TRUE:FALSE;
          if (ll!=NULL)
             switch (i->cmd.op) {
             case FIND:
@@ -1426,7 +1480,7 @@ void EditFile(char *labfn)
                d += DeleteOp(ll,i->cmd.args); break;
             case DELLEV:
                if (i->cmd.nArgs==1)
-                  DeleteLevel(levs,(int)i->cmd.args[0]->aux);
+                  DeleteLevel(levs,(int)((long)i->cmd.args[0]->aux));
                else
                   DeleteLevel(levs,clev);
                break;
@@ -1437,7 +1491,7 @@ void EditFile(char *labfn)
             case ISIL:
                a += ISilOp(ll,i->cmd.args); break;
             case SETLEV:
-               clev=(int)i->cmd.args[0]->aux;
+               clev=(int)((long)i->cmd.args[0]->aux);
                if (clev>nlev) {
                   ll = NULL;
                   HError(-1231,"EditLevel: Level %d does not exist",clev);
@@ -1486,6 +1540,6 @@ void EditFile(char *labfn)
 }
 
 
-/* ------------------------------------------------------------ */
+/* ----------------------------------------------------------- */
 /*                         END:  HLEd.c                         */
-/* ------------------------------------------------------------ */
+/* ----------------------------------------------------------- */

@@ -19,8 +19,53 @@
 /*    File: HResults.c: gather statistics on results           */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hresults_version = "!HVER!HResults:   3.4.1 [CUED 12/03/09]";
-char *hresults_vc_id = "$Id: HResults.c,v 1.1.1.1 2006/10/11 09:55:01 jal58 Exp $";
+char *hresults_vc_id = "$Id: HResults.c,v 1.13 2011/06/16 04:18:30 uratec Exp $";
 
 #include "HShell.h"
 #include "HMem.h"
@@ -89,7 +134,7 @@ MemHeap tempHeap;                     /* Stores data valid only for file */
 MemHeap permHeap;                     /* Stores global stats */
 
 static char *recfn;                   /* rec file name (test) */
-static char labfn[255];               /* lab file name (reference) */
+static char labfn[MAXSTRLEN];         /* lab file name (reference) */
 
 static int rlev=0;                    /* Label level to be used as ref */
 static int tlev=0;                    /* Label level to be scored */
@@ -97,7 +142,7 @@ static LabList *ref,*test;            /* the labels being compared */
 static Transcription *ans;            /* the full set of answers */
 
 static char * refid=NULL;             /* identifiers for reference material */
-static char recid[5][255];            /* upto 5 identifiers for */
+static char recid[5][MAXSTRLEN];      /* upto 5 identifiers for */
 static int recidUsed = 0;             /* number of test identifiers set */
 
 
@@ -132,6 +177,7 @@ void SetConfParms(void)
 
 void ReportUsage(void)
 {
+   printf("\nModified for HTS\n");
    printf("\nUSAGE: HResults [options] labelList recFiles...\n\n");
    printf(" Option                                       Default\n\n");
    printf(" -a s    Redefine string level label          SENT\n");
@@ -151,7 +197,7 @@ void ReportUsage(void)
    printf(" -u f    False alarm time units (hours)       1.0\n");
    printf(" -w      Enable word spotting analysis        off\n");
    printf(" -z s    Redefine null class name to s        ???\n");
-   PrintStdOpts("GILX");
+   PrintStdOpts("GILXS");
    printf("\n\n");
 }
 
@@ -326,6 +372,12 @@ int main(int argc, char *argv[])
    else 
       printf("No transcriptions found\n");
 
+   ResetLabel();
+   ResetWave();
+   ResetMath();
+   ResetMem();
+   ResetShell();
+   
    Exit(0);
    return (0);          /* never reached -- make compiler happy */
 }
@@ -360,7 +412,7 @@ void NormaliseName(LabList *ll,int lev)
    LLink l;
    Equiv *p;
    int i,n,len;
-   char buf[256],*ptr;
+   char buf[MAXSTRLEN],*ptr;
 
    n=CountAuxLabs(ll,lev);
    for (p=eqlist; p!=NULL; p=p->next) {
@@ -442,9 +494,9 @@ static Boolean SpRMatch(char *s,char *p,char *spkr,
    else if ((numstars==0 && minplen!=slen) || minplen>slen)
       match=FALSE;
    else if (*p == '*') {
-      match=(SpRMatch(s+1,p,spkr,slen-1,minplen,numstars) ||
+      match=((SpRMatch(s+1,p,spkr,slen-1,minplen,numstars) ||
              SpRMatch(s,p+1,spkr,slen,minplen,numstars-1) ||
-             SpRMatch(s+1,p+1,spkr,slen-1,minplen,numstars-1));
+              SpRMatch(s+1,p+1,spkr,slen-1,minplen,numstars-1)) ? TRUE:FALSE);
    }
    else if (*p == '%') {
       *spkr=*s,spkr[1]=0;
@@ -535,7 +587,7 @@ Boolean RecordFileStats(CellPtr p)
    del += p->del;    ins += p->ins; /* update global counters */
    sub += p->sub;    hits += p->hit;
    nsyms += p->hit+p->del+p->sub; ++nphr;
-   error = !(p->del==0 && p->ins==0 && p->sub==0);
+   error = (!(p->del==0 && p->ins==0 && p->sub==0)) ? TRUE:FALSE;
    if (!error) ++phrcor;
    if (spkrMask != NULL){       /* update speaker if reqd */
       s = GetSpeaker();
@@ -608,10 +660,10 @@ void PClip(char * instr, char *outstr, int max)
 /* PrintHeader: print title information */
 void PrintHeader(void)
 {
-   char datestr[255];
+   char datestr[MAXSTRLEN];
    time_t clock = time(NULL);
    int i;
-   char buf[100];
+   char buf[MAXSTRLEN];
 
    strcpy(datestr,ctime(&clock));
    datestr[strlen(datestr)-1] = '\0';
@@ -658,7 +710,7 @@ void PrintFileStats(char *fn, int h, int d, int s, int i)
    float accuracy,correct;
    float psub,pdel,pins,perr;
    int nc;
-   char buf[100];
+   char buf[MAXSTRLEN];
    
    if (!headerPrinted) {
       PrintHeader();
@@ -888,9 +940,9 @@ void DoCompare(void)
 
    for (i=1;i<=nTest;i++){
       gridi = grid[i]; gridi1 = grid[i-1];
-      testnull = (lTest[i] == nulClass);
+      testnull = (lTest[i] == nulClass) ? TRUE:FALSE;
       for (j=1;j<=nRef;j++) {
-         refnull = (lRef[j] == nulClass);
+         refnull = (lRef[j] == nulClass) ? TRUE:FALSE;
          if (refnull && testnull) { /* both ref and test are null */
             h = gridi1[j].score; 
             d = gridi1[j-1].score; 
@@ -958,9 +1010,9 @@ void DoCompareNIST(void)
 
    for (i=1;i<=nTest;i++){
       gridi = grid[i]; gridi1 = grid[i-1];
-      testnull = (lTest[i] == nulClass);
+      testnull = (lTest[i] == nulClass) ? TRUE:FALSE;
       for (j=1;j<=nRef;j++) {
-         refnull = (lRef[j] == nulClass);
+         refnull = (lRef[j] == nulClass) ? TRUE:FALSE;
          if (refnull && testnull) { /* both ref and test are null */
             h = gridi1[j].score; 
             d = gridi1[j-1].score; 
@@ -1143,7 +1195,7 @@ void ReadHMMList(char *fn)
       ReadWordFromLine(&source,buf);
       labid=GetLabId(buf,TRUE);
       names[i]=labid;
-      labid->aux = (Ptr)i;
+      labid->aux = (Ptr)((long) i);
    }
    CloseSource(&source);
 }
@@ -1152,7 +1204,7 @@ int Index(LabId labid)
 {
    int i;
    
-   i=(int)labid->aux;
+   i=(int)((long)labid->aux);
    if (wSpot && i==0) return(0);
    if (i<1 || i>nLabs || names[i]!=labid)
       HError(3331,"Index: Label %s not in list[%d of %d]",
@@ -1299,7 +1351,7 @@ void MatchRecFiles(void)
 {
    Cell bp,*p;
    int i,n,err,berr,best;
-   char buf[255];
+   char buf[MAXSTRLEN];
    
    n=(ans->numLists>maxNDepth)?maxNDepth:ans->numLists;
    best=0;berr=INT_MAX;
@@ -1746,7 +1798,6 @@ void OutputStats(void)
       PrintGlobalStats();
 }
 
-/* ------------------------------------------------------------ */
+/* ----------------------------------------------------------- */
 /*                      END:  HResults.c                        */
-/* ------------------------------------------------------------ */
-
+/* ----------------------------------------------------------- */

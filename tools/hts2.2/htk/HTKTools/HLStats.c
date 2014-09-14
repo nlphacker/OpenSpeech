@@ -19,8 +19,53 @@
 /*    File: HLStats.c: gather statistics from transcriptions   */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hlstats_version = "!HVER!HLStats:   3.4.1 [CUED 12/03/09]";
-char *hlstats_vc_id = "$Id: HLStats.c,v 1.1.1.1 2006/10/11 09:55:01 jal58 Exp $";
+char *hlstats_vc_id = "$Id: HLStats.c,v 1.10 2011/06/16 04:18:30 uratec Exp $";
 
 #include "HShell.h"
 #include "HMem.h"
@@ -103,6 +148,7 @@ void SetConfParms(void)
 
 void ReportUsage(void)
 {
+   printf("\nModified for HTS\n");
    printf("\nUSAGE: HLStats [options] hmmList labFile...\n\n");
    printf(" Option                                       Default\n\n");
    printf(" -b fn    output bigram to file fn            off\n");
@@ -277,6 +323,14 @@ int main(int argc, char *argv[])
 
    if (trace&T_MEM)
       PrintAllHeapStats();
+
+   ResetLM();
+   ResetLabel();
+   ResetWave();
+   ResetMath();
+   ResetMem();
+   ResetShell();
+   
    Exit(0);
    return (0);          /* never reached -- make compiler happy */
 }
@@ -366,7 +420,9 @@ void InitWordInfo(WordInfo *w, LabId id, Cntr *pCntr)
 /* InitStats: Create and init all necessary global accumulators */
 void InitStats(char *listFn)
 {
-   int h,p,l;
+   int h;
+   long l;
+   long p;
    MLink q,hm;
    HLink hmm;
    HMMSet *hset;
@@ -420,7 +476,7 @@ void InitStats(char *listFn)
             if (hm==NULL || hmm->hook==0)
                HError(1390,"InitStats: No physical name found for %s",
                       q->id->name);
-            InitWordInfo(lTab+l,q->id,pTab+(int)hmm->hook);
+            InitWordInfo(lTab+l,q->id,pTab+(long)hmm->hook);
             l++;
          }
    qsort(lTab+1,lSize,sizeof(WordInfo),wd_cmp);
@@ -489,13 +545,13 @@ void GatherStats(Transcription *t)
    if (l->labid==exitId) en--;
 
    /* Coerce previous labels to be enterId */
-   for (i=0; i<ASIZE; i++) in[i]=(int)enterId->aux;
-   lt = lTab+(int)enterId->aux; ++lt->count;
+   for (i=0; i<ASIZE; i++) in[i]=(long)enterId->aux;
+   lt = lTab+(long)enterId->aux; ++lt->count;
    
    /* Process actual labels in list */ 
    for (i=st; i<=en; i++) {
       l = GetLabN(ll,i);
-      lab=(int)l->labid->aux;
+      lab=(long)l->labid->aux;
       dur = (float)(l->end - l->start)/10000.0;
       lt=lTab+lab;
       /* increment stats */
@@ -507,7 +563,7 @@ void GatherStats(Transcription *t)
       if (doBigram) {
          /* We ignore all transitions into enterId and exitId */
          /* May wish to warn user about badly formed sentences */
-         if (!(lab==(int)enterId->aux || (lab==(int)exitId->aux))) {
+         if (!(lab==(long)enterId->aux || (lab==(long)exitId->aux))) {
             for (j=ASIZE-1;j>0;j--) in[j]=in[j-1];
             in[0]=lab;
             ae = GetAEntry(in,TRUE);
@@ -518,11 +574,11 @@ void GatherStats(Transcription *t)
    /* Deal with transition into EXIT */
    if (doBigram) {
       for (j=ASIZE-1;j>0;j--) in[j]=in[j-1];
-      in[0]=(int)exitId->aux;
+      in[0]=(int)((long)exitId->aux);
       ae = GetAEntry(in,TRUE);
       ae->count++;
    }
-   lt = lTab+(int)exitId->aux; ++lt->count;
+   lt = lTab+(long)exitId->aux; ++lt->count;
 }
 
 /* ----------------------- Output Results -------------------- */
@@ -536,7 +592,7 @@ int CmpCntr(const void *p1, const void *p2)
 
    c1=(Cntr *)p1; c2=(Cntr *)p2;
    diff=c1->count-c2->count;
-   if (diff==0) return((int)c2->name->aux-(int)c1->name->aux);
+   if (diff==0) return((int)((long)c2->name->aux-(long)c1->name->aux));
    else return(diff);
 }
 
@@ -550,7 +606,7 @@ int CmpWordInfo(const void *p1, const void *p2)
    
    c1=(WordInfo *)p1; c2=(WordInfo *)p2;
    diff=c1->count-c2->count;
-   if (diff==0) return((int)c2->name->aux-(int)c1->name->aux);
+   if (diff==0) return((long)c2->name->aux-(long)c1->name->aux);
    else return(diff);
 }
 
@@ -663,10 +719,10 @@ static float BuildNEntry(NEntry *ne,Vector boff,float bent)
    ne->nse=0;
    tot=cnt=0.0;
    bsum=1.0;
-   if (ne->word[0]!=(int)exitId->aux)
+   if (ne->word[0]!=(long)exitId->aux)
       for (ae=(AEntry *) ne->user; ae!=NULL; ae=ae->link) {
          tot+=ae->count;
-         if (ae->word[0]!=0 && ae->word[0]!=(int)enterId->aux &&
+         if (ae->word[0]!=0 && ae->word[0]!=(long)enterId->aux &&
              ae->count>bigThresh)
             cnt+=(ae->count-disCount),ne->nse++,bsum-=boff[ae->word[0]];
       }
@@ -680,7 +736,7 @@ static float BuildNEntry(NEntry *ne,Vector boff,float bent)
       bowt = (bsum>0.0) ? (1.0-cnt/tot)/bsum : 0.0;
       ent  = (bowt>0.0) ? bowt*(bent-log2(bowt)) : 0.0;
       for (cse=ne->se,ae=(AEntry *) ne->user; ae!=NULL; ae=ae->link)
-         if (ae->word[0]!=0 && ae->word[0]!=(int)enterId->aux &&
+         if (ae->word[0]!=0 && ae->word[0]!=(long)enterId->aux &&
              ae->count>bigThresh) {
             prob=((double)ae->count-disCount)/tot;
             cse->word=ae->word[0];
@@ -723,7 +779,7 @@ void OutputBoBigram(void)
    RebuildAETab(aelists);          /* Un-hash hashtable */
 
    for (i=1,tot=0.0;i<=lSize;i++) {    /* Calculate unigrams first */
-      if (i==(int)enterId->aux)
+      if (i==(long)enterId->aux)
          nglm->unigrams[i]=0.0;
       else if (lTab[i].count<uniFloor)
          nglm->unigrams[i]=uniFloor;
@@ -752,9 +808,9 @@ void OutputBoBigram(void)
       ent = BuildNEntry(ne,nglm->unigrams,uent);
       nglm->counts[2]+=ne->nse;
       if (trace&T_BIG) 
-         if (i!=(int)exitId->aux){
-            if (i==(int)enterId->aux)
-               bent+=nglm->unigrams[(int)exitId->aux]*ent;
+         if (i!=(long)exitId->aux){
+            if (i==(long)enterId->aux)
+               bent+=nglm->unigrams[(long)exitId->aux]*ent;
             else 
                bent+=nglm->unigrams[i]*ent;
             printf("   %-20s - %4d foll, ent %6.3f [= %6.2f]\n",
@@ -826,7 +882,7 @@ void OutputMatBigram(void)
             ae->count=0;
       scale = (1.0 - fsum) / vsum;
       for (j=1;j<=lSize;j++) {
-         if (j==(int)enterId->aux) vec[j]=0.0;
+         if (j==(int)((long)enterId->aux)) vec[j]=0.0;
          else if (tot==0.0) vec[j]=1.0/(lSize-1);
          else vec[j]=bigFloor;
       }
@@ -848,7 +904,7 @@ void OutputMatBigram(void)
                ent += fent;
                nf--;  np++;
             }
-         if (i!=(int)exitId->aux){
+         if (i!=(int)((long)exitId->aux)){
             j=lTab[i].count;
             bent+=j*ent;tn+=j;
             if (tot==0.0)
@@ -899,6 +955,6 @@ void OutputStats(void)
       OutputCounts(); /* Breaks log->phy links */
 }
 
-/* ------------------------------------------------------------ */
+/* ----------------------------------------------------------- */
 /*                      END:  HLStats.c                         */
-/* ------------------------------------------------------------ */
+/* ----------------------------------------------------------- */

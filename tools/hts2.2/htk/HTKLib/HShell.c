@@ -32,8 +32,53 @@
 /*         File: HShell.c:   Interface to the Shell            */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hshell_version = "!HVER!HShell:   3.4.1 [CUED 12/03/09]";
-char *hshell_vc_id = "$Id: HShell.c,v 1.1.1.1 2006/10/11 09:54:58 jal58 Exp $";
+char *hshell_vc_id = "$Id: HShell.c,v 1.15 2011/06/16 04:18:29 uratec Exp $";
 
 #include "HShell.h"
 
@@ -70,8 +115,8 @@ Boolean vaxOrder = FALSE;
 #define MAXEFS 5                        /* max num ext files to remember */
 
 typedef struct {                        /* extended file name */
-   char logfile[1024];                  /* logical name */
-   char actfile[1024];                  /* actual file name */
+   char logfile[MAXFNAMELEN];           /* logical name */
+   char actfile[MAXFNAMELEN];           /* actual file name */
    long stindex;                        /* start sample to extract */
    long enindex;                        /* end sample to extract */
 }ExtFile;
@@ -86,7 +131,7 @@ static int extFileUsed = 0;             /* total ext files in buffer */
 char * RegisterExtFileName(char *s)
 {
    char *eq,*rb,*lb,*co;
-   char buf[1024];
+   char buf[MAXFNAMELEN];
    ExtFile *p;
 
    if (!extendedFileNames)
@@ -567,7 +612,10 @@ static int FindConfParm(ConfParam **list,int size,char *name,ConfKind kind)
 /* EXPORT->HasConfParm: true if parameter exists with given name */
 Boolean HasConfParm(ConfParam **list, int size, char *name)
 {
-   return (FindConfParm(list,size,name,AnyCKind) != -1);
+   if (FindConfParm(list,size,name,AnyCKind) != -1)
+      return TRUE;
+   else
+      return FALSE;
 }
 
 /* EXPORT->GetConfStr: return string parameter with given name */
@@ -651,7 +699,7 @@ static char *defargs[2]={ "<Uninitialised>", "" };
 static char **arglist=defargs;/* actual arg list */
 static FILE *script = NULL;   /* script file if any */
 static int scriptcount = 0;   /* num words in script */
-static char scriptBuf[256];   /* buffer for current script arg */
+static char scriptBuf[MAXSTRLEN];   /* buffer for current script arg */
 static Boolean scriptBufLoaded = FALSE;
 static Boolean wasQuoted;     /* true if next arg was quoted */
 static ConfParam *cParm[MAXGLOBS];      /* config parameters */
@@ -905,7 +953,7 @@ static Boolean FilterSet(IOFilter filter, char *s)
 void SubstFName(char *fname, char *s)
 {
    char *p;
-   char buf[1028];
+   char buf[MAXFNAMELEN+4];
 
    while ((p=strchr(s,'$')) != NULL){
       *p = '\0'; ++p;
@@ -927,7 +975,7 @@ FILE *FOpen(char *fname, IOFilter filter, Boolean *isPipe)
    FILE *f;
    int i;
    Boolean isInput;
-   char mode[8],cmd[1028];
+   char mode[8],cmd[MAXFNAMELEN+4];
 
    if (filter <= NoFilter){ /* then input */
       isInput = TRUE;
@@ -1060,7 +1108,10 @@ Boolean SkipLine(Source *src)
    
    c = GetCh(src);
    while (c != EOF && c != '\n') c = GetCh(src);
-   return(c!=EOF);
+   if (c!=EOF)
+      return TRUE;
+   else
+      return FALSE;
 }
 
 /* EXPORT->ReadLine: read to next newline in source */
@@ -1071,7 +1122,7 @@ Boolean ReadLine(Source *src,char *s)
    c = GetCh(src);
    while (c != EOF && c != '\n') *s++=c,c=GetCh(src);
    *s=0;
-   return(c!=EOF);
+   return((c!=EOF) ? TRUE:FALSE);
 }
 
 /* EXPORT->ReadUntilLine: read to next occurrence of string */
@@ -1349,7 +1400,19 @@ static Boolean IsVAXOrder(void)
    px = &x;
    pc = (unsigned char *) px;
    *pc = 1; *(pc+1) = 0;         /* store bytes 1 0 */
-   return x==1;          /* does it read back as 1? */
+   return ((x==1) ? TRUE:FALSE);          /* does it read back as 1? */
+}
+
+/* EXPORT->SwapDouble: swap byte order of double data value *p */
+void SwapDouble(double *p)
+{
+   char temp, *q;
+   
+   q = (char *) p;
+   temp = *(q+0); *(q+0) = *(q+7); *(q+7) = temp;
+   temp = *(q+1); *(q+1) = *(q+6); *(q+6) = temp;
+   temp = *(q+2); *(q+2) = *(q+5); *(q+5) = temp;
+   temp = *(q+3); *(q+3) = *(q+4); *(q+4) = temp;
 }
 
 /* SwapInt32: swap byte order of int32 data value *p */
@@ -1455,22 +1518,56 @@ Boolean RawReadFloat(Source *src, float *x, int n, Boolean bin, Boolean swap)
    return TRUE;
 }
 
+/* EXPORT->RawReadDouble: read n doubles from src in ascii or binary */
+Boolean RawReadDouble(Source *src, double *x, int n, Boolean bin, Boolean swap)
+{
+   int k,count=0,j;
+   double *p;
+   
+   if (bin){
+      if (fread(x,sizeof(double),n,src->f) != n)
+         return FALSE;
+      if (swap)
+         for(p=x,j=0;j<n;p++,j++)
+            SwapDouble(p);  /* Read in SUNSO unless natReadOrder=T */
+
+      count += n*sizeof(double);     
+   } else {
+      if (src->pbValid) {
+         ungetc(src->putback, src->f); src->pbValid = FALSE;
+      }
+      for (j=1; j<=n; j++){
+         if (fscanf(src->f,"%lf%n",x,&k) != 1)
+            return FALSE;
+         x++; count += k;
+      }
+   }
+   src->chcount += count;
+   return TRUE;
+}
+
 /* EXPORT->ReadShort: read n short's from src in ascii or binary */
 Boolean ReadShort(Source *src, short *s, int n, Boolean binary)
 {
-   return(RawReadShort(src,s,n,binary,(vaxOrder && !natReadOrder)));
+   return(RawReadShort(src,s,n,binary,((vaxOrder && !natReadOrder) ? TRUE:FALSE)));
 }
 
 /* EXPORT->ReadInt: read n ints from src in ascii or binary */
 Boolean ReadInt(Source *src, int *i, int n, Boolean binary)
 {
-   return(RawReadInt(src,i,n,binary,(vaxOrder && !natReadOrder)));
+   return(RawReadInt(src,i,n,binary,((vaxOrder && !natReadOrder) ? TRUE:FALSE)));
 }
 
 /* EXPORT->ReadFloat: read n floats from src in ascii or binary */
 Boolean ReadFloat(Source *src, float *x, int n, Boolean binary)
 {
-   return(RawReadFloat(src,x,n,binary,(vaxOrder && !natReadOrder)));
+   return(RawReadFloat(src,x,n,binary,((vaxOrder && !natReadOrder) ? TRUE:FALSE)));
+}
+
+/* EXPORT->ReadDouble: read n doubles from src in ascii or binary */
+Boolean ReadDouble(Source *src, double *x, int n, Boolean binary)
+{
+   return(RawReadDouble(src,x,n,binary,((vaxOrder && !natReadOrder) ? TRUE:FALSE)));
 }
 
 /* EXPORT->KeyPressed: returns TRUE if input is pending on stdin */
@@ -1658,6 +1755,30 @@ void WriteFloat (FILE *f, float *x, int n, Boolean binary)
    }
 }
 
+/* EXPORT->WriteDouble: write n doubles to f */
+void WriteDouble (FILE *f, double *x, int n, Boolean binary)
+{
+   int j;
+   double *p;
+   
+   if (binary){
+      if (vaxOrder && !natWriteOrder){
+         for(p=x,j=0;j<n;p++,j++)
+            SwapDouble(p);  /* Write in SUNSO unless natWriteOrder=T */
+      }
+      if (fwrite(x,sizeof(double),n,f) != n)
+         HError(5014,"WriteDouble: cant write to file");
+      if (vaxOrder && !natWriteOrder){
+         for(p=x,j=0;j<n;p++,j++)
+            SwapDouble(p);  /* Swap Back */
+      }
+   } else {
+      for (j=1; j<=n; j++){
+         fprintf(f," %e",*x++);
+      }
+   }
+}
+
 /* -------------------- File Name Handling ------------------- */
 
 /*
@@ -1725,7 +1846,7 @@ char * PathOf(char *fn, char *s)
 /* EXPORT->ExtnOf: extension part of fn */
 char * ExtnOf(char *fn, char *s)
 {
-   char *t,buf[100];
+   char *t,buf[MAXSTRLEN];
    
    NameOf(fn,buf);
    t = strrchr(buf,'.');
@@ -1784,7 +1905,7 @@ char * CounterFN(char *prefix, char* suffix, int count, int width, char *s)
 /* RMatch: recursively match s against pattern p, minplen
    is the min length string that can match p and
    numstars is the number of *'s in p */
-Boolean RMatch(char *s,char *p,int slen,int minplen,int numstars)
+Boolean RMatch(const char *s, const char *p, const int slen, const int minplen, const int numstars)
 {
    if (slen==0 && minplen==0)
       return TRUE;
@@ -1793,9 +1914,9 @@ Boolean RMatch(char *s,char *p,int slen,int minplen,int numstars)
    if (minplen>slen)
       return FALSE;
    if (*p == '*')
-      return RMatch(s+1,p+1,slen-1,minplen,numstars-1) ||
+      return ((RMatch(s+1,p+1,slen-1,minplen,numstars-1) ||
          RMatch(s,p+1,slen,minplen,numstars-1) ||
-         RMatch(s+1,p,slen-1,minplen,numstars);
+               RMatch(s+1,p,slen-1,minplen,numstars)) ? TRUE:FALSE);
    if (*p == *s || *p == '?')
       return RMatch(s+1,p+1,slen-1,minplen-1,numstars);
    else
@@ -1812,6 +1933,15 @@ Boolean DoMatch(char *s, char *p)
    minplen = 0; numstars = 0; q = p;
    while ((c=*q++))
       if (c == '*') ++numstars; else ++minplen;
+   if (numstars==2 && *p=='*' && *(q-2)=='*' && strchr(p,'?')==NULL) {
+      char str[PAT_LEN];
+      strncpy(str, p+1, minplen);  str[minplen] = '\0';
+      if (strstr(s, str)!=NULL) 
+         return TRUE; 
+      else 
+         return FALSE;
+   }
+   else   
    return RMatch(s,p,slen,minplen,numstars);
 }
 
@@ -1830,9 +1960,9 @@ static Boolean SpRMatch(char *s,char *p,char *spkr,
    else if ((numstars==0 && minplen!=slen) || minplen>slen)
       match=FALSE;
    else if (*p == '*') {
-      match=(SpRMatch(s+1,p,spkr,slen-1,minplen,numstars) ||
+      match=((SpRMatch(s+1,p,spkr,slen-1,minplen,numstars) ||
 	     SpRMatch(s,p+1,spkr,slen,minplen,numstars-1) ||
-	     SpRMatch(s+1,p+1,spkr,slen-1,minplen,numstars-1));
+	           SpRMatch(s+1,p+1,spkr,slen-1,minplen,numstars-1))) ? TRUE:FALSE;
    }
    else if (*p == '%') {
       *spkr=*s,spkr[1]=0;
@@ -1984,6 +2114,13 @@ ReturnStatus InitShell(int argc, char *argv[], char *ver, char *sccs)
    return(SUCCESS);
 }
 
+/* EXPORT->ResetShell: reset module */
+void ResetShell (void)
+{
+   free(arglist);
+   
+   return;
+}
 
 /* EXPORT->PrintStdOpts: print standard options */
 void PrintStdOpts(char *opt)
@@ -2017,17 +2154,34 @@ void PrintStdOpts(char *opt)
       printf(" -L dir  Set input label (or net) dir         current\n");
    if (strchr(opt,'M'))
       printf(" -M dir  Dir to write HMM macro files         current\n");
+   if (strchr(opt,'N'))
+      printf(" -N mmf  Load duration macro file mmf\n");
    if (strchr(opt,'O'))
       printf(" -O      Set target data format to fmt        as config\n");
    if (strchr(opt,'P'))
       printf(" -P      Set target label format to fmt       as config\n");
    if (strchr(opt,'Q'))
       printf(" -Q      Print command summary\n");
+   if (strchr(opt,'R'))
+      printf(" -R dir  Dir to write duration macro files                 current\n");
+   if (strchr(opt,'S'))
    printf(" -S f    Set script file to f                 none\n");
    printf(" -T N    Set trace flags to N                 0\n");
    printf(" -V      Print version information            off\n");
+   if (strchr(opt,'W')) {
+      printf(" -W s [s] set dir for duration parent xform to s           off\n");
+      printf("         and optional extension                 \n");
+   }
    if (strchr(opt,'X'))
       printf(" -X ext  Set input label (or net) file ext    lab\n");
+   if (strchr(opt,'Y')) {
+      printf(" -Y s [s] set dir for duration input xform to s            none\n");
+      printf("         and optional extension                            \n");
+   }
+   if (strchr(opt,'Z')) {
+      printf(" -Z s [s] set dir for duration output xform to s           none\n");
+      printf("         and optional extension                            \n");
+   }
 }
 
-/* -------------------------- End of HShell.c ----------------------------- */
+/* ------------------------ End of HShell.c ------------------------ */

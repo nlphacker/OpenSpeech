@@ -27,8 +27,53 @@
 /*         File: HFBLat.c   Lattice Forward Backward routines  */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hfblat_version = "!HVER!HFBLat:   3.4.1 [CUED 12/03/09]";
-char *hfblat_vc_id = "$Id: HFBLat.c,v 1.1.1.1 2006/10/11 09:54:57 jal58 Exp $";
+char *hfblat_vc_id = "$Id: HFBLat.c,v 1.18 2011/06/16 04:18:29 uratec Exp $";
 
 /*
   Performs forward/backward alignment
@@ -171,7 +216,7 @@ int GetNoContextPhone(LabId phone, int *nStates_quinphone/*actually,number of HM
 
    if(PhoneMEEUseContext){
       if(Quinphone) HError(1, "Quinphone not compatible with context phones...");
-      return (int) phone;
+      return (int) ((long)phone);
    }
    strcpy(buf,lab);
 #ifdef SUPPORT_QUINPHONE
@@ -210,7 +255,7 @@ int GetNoContextPhone(LabId phone, int *nStates_quinphone/*actually,number of HM
    /* Want to return an integer identifier for the string.  Put the string into an integer
       if it is <4 chars long, otherwise call GetLabId.  Calling GetLabId too much can be
       inefficient so I use this approach instead for short phones. */
-   if(len > sizeof(int)) return (int) GetLabId(tmp, TRUE);
+   if(len > sizeof(int)) return (int) ((long)GetLabId(tmp, TRUE));
    else return ans;
 }
 
@@ -231,7 +276,7 @@ static void SetCorrectness(FBLatInfo *fbInfo, Lattice *numLat){
    int larcid;
    CorrectArcList **correctArc;
    correctArc=New(&fbInfo->tempStack, sizeof(CorrectArcList*)*(fbInfo->T+1));
-   ResetObsCache();
+   ResetObsCache(fbInfo->xfinfo);
    if(!numLat) HError(-1, "MEE mode and no numLat provided.  FBLat needs to be given both lattices in this mode.");
    for(t=1;t<=fbInfo->T;t++)    correctArc[t]  = NULL;
 
@@ -252,7 +297,7 @@ static void SetCorrectness(FBLatInfo *fbInfo, Lattice *numLat){
                {
                   LabId label = numLat->larcs[larcid].lAlign[seg].label; 
                   if(!PhoneMEEUseContext) i_label = GetNoContextPhone(label,&quinphone_nstates,&quinphone_state,NULL,NULL); 
-                  else i_label = (int)label; /* Use address of LabId. */
+                  else i_label = (int)((long)label); /* Use address of LabId. */
                }
 
                end_time = start_time + numLat->larcs[larcid].lAlign[seg].dur;
@@ -301,7 +346,7 @@ static void SetCorrectness(FBLatInfo *fbInfo, Lattice *numLat){
 #endif
             ca = New(&fbInfo->tempStack, sizeof(CorrectArc));
             ca->start = i_start; ca->end = i_end; 
-            ca->i_label = (int)numLat->larcs[larcid].end->word->wordName;
+            ca->i_label = (int)((long)numLat->larcs[larcid].end->word->wordName);
 
             for(i=i_start;i<=i_end;i++){
                CorrectArcList *cal = New(&fbInfo->tempStack, sizeof(CorrectArcList));
@@ -331,7 +376,7 @@ static void SetCorrectness(FBLatInfo *fbInfo, Lattice *numLat){
                /*get phone start&end times.*/
                i_start=a->t_start;i_end=a->t_end;
                if(!PhoneMEEUseContext)  iphone = GetNoContextPhone(phone,&quinphone_nstates,&quinphone_state, a, &i_end);
-               else iphone = (int)phone;
+               else iphone = (int)((long)phone);
 #ifdef SUPPORT_QUINPHONE
                if(Quinphone && quinphone_nstates>1 && quinphone_state > 2){ ZeroCorrectness = TRUE; }
 #endif
@@ -395,12 +440,12 @@ static void SetCorrectness(FBLatInfo *fbInfo, Lattice *numLat){
                   for(i=i_start;i<=i_end;i++){ /*look for all the ref. phones in this time interval.*/
                      for(cal = correctArc[i];cal;cal=cal->t){
                         float proportion;
-                        int otherWord; 
+                        long otherWord; 
                         currBegin = cal->h->start; currEnd=cal->h->end;
                         otherWord = cal->h->i_label; /*is actually the (int)LabId in this case.*/
                         proportion =
                            (float)(MIN(i_end,currEnd)-MAX(i_start,currBegin)+1)/ ((float)(currEnd-currBegin+1)); 
-                        if(otherWord == (int)word)
+                        if(otherWord == (long)word)
                            /*Work out how much overlap we have with the correct phone*/
                            /* ref length div by overlap length */
                            currCorrect = MAX(currCorrect, InsCorrectness + proportion*(-InsCorrectness+1));
@@ -522,7 +567,7 @@ static void SetCorrectnessAsError(FBLatInfo *fbInfo, Lattice *numLat){    /* re 
    int larcid;
    CorrectArcList **correctArc;
    correctArc=New(&fbInfo->tempStack, sizeof(CorrectArcList*)*(fbInfo->T+1));
-   ResetObsCache();
+   ResetObsCache(fbInfo->xfinfo);
    if(!numLat) HError(-1, "MEE mode and no numLat provided.  FBLat needs to be given both lattices in this mode.");
    for(t=1;t<=fbInfo->T;t++)    correctArc[t]  = NULL;
 
@@ -543,7 +588,7 @@ static void SetCorrectnessAsError(FBLatInfo *fbInfo, Lattice *numLat){    /* re 
                {
                   LabId label = numLat->larcs[larcid].lAlign[seg].label; 
                   if(!PhoneMEEUseContext) i_label = GetNoContextPhone(label,&quinphone_nstates,&quinphone_state,NULL,NULL); 
-                  else i_label = (int)label; /* Use address of LabId. */
+                  else i_label = (int)((long)label); /* Use address of LabId. */
 
 		  is_nonsil = (int) ! IsSilence(label->name);
                }
@@ -594,7 +639,7 @@ static void SetCorrectnessAsError(FBLatInfo *fbInfo, Lattice *numLat){    /* re 
 #endif
             ca = New(&fbInfo->tempStack, sizeof(CorrectArc));
             ca->start = i_start; ca->end = i_end; 
-            ca->i_label = (int)numLat->larcs[larcid].end->word->wordName;
+            ca->i_label = (int)((long)numLat->larcs[larcid].end->word->wordName);
 
             for(i=i_start;i<=i_end;i++){
                CorrectArcList *cal = New(&fbInfo->tempStack, sizeof(CorrectArcList));
@@ -618,18 +663,18 @@ static void SetCorrectnessAsError(FBLatInfo *fbInfo, Lattice *numLat){    /* re 
                LabId phone = a->phone;
                int iphone; /*as ints..*/
                int i_start, i_end;
-               float currCorrect; /*-1 is the min correctness (for wrong phones).*/
+               float currCorrect=-1; /*-1 is the min correctness (for wrong phones).*/
                
                /*get phone start&end times.*/
                i_start=a->t_start;i_end=a->t_end;
                if(!PhoneMEEUseContext)  iphone = GetNoContextPhone(phone,&quinphone_nstates,&quinphone_state, a, &i_end);
-               else iphone = (int)phone;
+               else iphone = (int)((long)phone);
 #ifdef SUPPORT_QUINPHONE
                if(Quinphone && quinphone_nstates>1 && quinphone_state > 2){ ZeroCorrectness = TRUE; }
 #endif
                if(!ZeroCorrectness){ /* ZeroCorrectness is true for non-start models in quinphone case */
 		 int compute_count = 100; /* Limit computation... */
-		 currCorrect = GetLowestNegError(i_start, i_end, i_start, 0, 0, correctArc, iphone, &compute_count, IsSilence(phone->name));
+                 currCorrect = GetLowestNegError(i_start, i_end, i_start, 0, 0, correctArc, iphone, &compute_count, (Boolean)IsSilence(phone->name));
 	       }
          
                if( /* IsSilence(phone->name) || */ ZeroCorrectness) /* If for some reason we arent counting this phone... relates to quinphones,
@@ -764,7 +809,7 @@ static float * NewOtprobVec(MemHeap *x, int M)
 
 
 /* ShStrP: Stream Outp calculation exploiting sharing */
-static float * ShStrP(Vector v, int t, StreamElem *ste, AdaptXForm *xform, MemHeap *amem)
+static float *ShStrP (Vector v, int t, StreamInfo *sti, AdaptXForm *xform, MemHeap *amem)
 {
    WtAcc *wa;
    MixtureElem *me;
@@ -774,13 +819,13 @@ static float * ShStrP(Vector v, int t, StreamElem *ste, AdaptXForm *xform, MemHe
    PreComp *pMix;
    LogFloat det,x,mixp;
    
-   wa = (WtAcc *)ste->hook;
+   wa = (WtAcc *)sti->hook;
    if (wa->time==t)           /* seen this state before */
       outprobjs = wa->prob;
    else {
-      M = ste->nMix;
+      M = sti->nMix;
       outprobjs = NewOtprobVec(amem,M);
-      me = ste->spdf.cpdf+1;
+      me = sti->spdf.cpdf+1;
       if (M==1){                 /* Single Mix Case */
          mp = me->mpdf;
          pMix = (PreComp *)mp->hook;
@@ -819,11 +864,11 @@ static float * ShStrP(Vector v, int t, StreamElem *ste, AdaptXForm *xform, MemHe
    
 
 /* Setotprob: allocate and calculate otprob matrix at time t */
-static void Setotprob(int t)
+static void Setotprob (const int t)
 {
    int q,j,Nq,s;
    float ***outprob;
-   StreamElem *ste;
+   StreamInfo *sti;
    HLink hmm;
    LogFloat sum;
    float local_probscale;
@@ -843,28 +888,27 @@ static void Setotprob(int t)
          outprob = ac->otprob[t];
       
          for (j=2;j<Nq;j++){
-            ste=hmm->svec[j].info->pdf+1; sum = 0.0;
-
-
-            for (s=1;s<=fbInfo->S;s++,ste++){
+            sum = 0.0;
+            for (s=1; s<=fbInfo->S; s++) {
+               sti=hmm->svec[j].info->pdf[s].info;
                switch (fbInfo->hsKind){
                case TIEDHS:	 /* SOutP deals with tied mix calculation */
                case DISCRETEHS:
                   if (fbInfo->S==1) {
                      outprob[j][0] = NewOtprobVec(fbInfo->aInfo->mem,1);
-                     outprob[j][0][0] = SOutP(fbInfo->hset,s,&fbInfo->al_ot, ste);
+                     outprob[j][0][0] = SOutP(fbInfo->hset,s,&fbInfo->al_ot, sti);
                   } else {
                      outprob[j][s] = NewOtprobVec(fbInfo->aInfo->mem,1);
-                     outprob[j][s][0] = SOutP(fbInfo->hset,s,&fbInfo->al_ot, ste);
+                     outprob[j][s][0] = SOutP(fbInfo->hset,s,&fbInfo->al_ot, sti);
                   }
 		  break;
-               case PLAINHS: /* x = SOutP(fbInfo->hset,s,&ot,ste);    break; commented out by dp10006 since
+               case PLAINHS: /* x = SOutP(fbInfo->hset,s,&ot,sti);    break; commented out by dp10006 since
                                 sharing is needed in any case for lattices. */
                case SHAREDHS:
 		  if (fbInfo->S==1)
-		     outprob[j][0] = ShStrP(fbInfo->al_ot.fv[s],t+StartTime,ste,fbInfo->inXForm,fbInfo->aInfo->mem);
+		     outprob[j][0] = ShStrP(fbInfo->al_ot.fv[s],t+StartTime,sti,fbInfo->inXForm,fbInfo->aInfo->mem);
 		  else
-		     outprob[j][s] = ShStrP(fbInfo->al_ot.fv[s],t+StartTime,ste,fbInfo->inXForm,fbInfo->aInfo->mem);
+		     outprob[j][s] = ShStrP(fbInfo->al_ot.fv[s],t+StartTime,sti,fbInfo->inXForm,fbInfo->aInfo->mem);
 		  break;
                default:       HError(1, "Unknown hset kind.");
                }
@@ -885,7 +929,8 @@ static void Setotprob(int t)
    }
 }
 
-void SetModelBetaPlus(int t, int q){
+void SetModelBetaPlus (const int t, const int q)
+{
    double x=LZERO;
    Acoustic *ac = fbInfo->aInfo->ac+q;
    HLink hmm = ac->hmm;
@@ -922,7 +967,7 @@ static void SetBetaPlus()
    /* 
       Columns T-1 -> 1.
    */
-   ResetObsCache();  
+   ResetObsCache(fbInfo->xfinfo);  
    for (t=fbInfo->T;t>=1;t--) {
       Setotprob(t);
       for (q=fbInfo->aInfo->qHi[t];q>=fbInfo->aInfo->qLo[t];q--) { /*MAX(qHi[t],qLo[t]) because of the case for tee models where qHi[t]=qLo[t]-1 .*/
@@ -971,7 +1016,7 @@ static void UpTranParms(int t, int q){
    TrAcc *ta,*tammi=NULL;   
    Acoustic *ac = fbInfo->aInfo->ac+q;
    HLink hmm = ac->hmm;
-   float x=0,mee_acc_scale = fbInfo->AccScale*(fbInfo->MPE?ac->mpe_occscale:1), abs_mee_acc_scale = fabs(mee_acc_scale);   
+   float x=0.0,mee_acc_scale = fbInfo->AccScale*(fbInfo->MPE?ac->mpe_occscale:1), abs_mee_acc_scale = fabs(mee_acc_scale);   
    DVector aqt = ac->alphat,
       bqtPlus = ac->betaPlus[t],
       bqt1Plus = (t<ac->t_end ? ac->betaPlus[t+1] : NULL);
@@ -1071,7 +1116,7 @@ void DoAllMixUpdates(int t){
    LogFloat det;
 
    float zmean,zmeanlr;
-   MuAcc *ma,*mammi;
+   MuAcc *ma,*mammi=NULL;
    VaAcc *va,*vammi;
    int local_accindx;
   
@@ -1103,7 +1148,7 @@ void DoAllMixUpdates(int t){
              up_otvs = ApplyCompFXForm(mp,fbInfo->al_ot.fv[s],fbInfo->paXForm,&det,t);
          } 
          if (fbInfo->uFlags&UPXFORM) 
-            AccAdaptFrame(fbInfo->hset,Lr, up_otvs, mp, t);   /* note: discriminative transform update needs to be investigated further */
+            AccAdaptFrame(fbInfo->xfinfo, Lr, up_otvs, mp, t);   /* note: discriminative transform update needs to be investigated further */
 
          /* -------------------- (c) Std Mixture updates --------------------*/
          if (fbInfo->uFlags&UPMEANS) { /* cant update vars but not means. */
@@ -1203,12 +1248,13 @@ static double UpMixParms(int q, HLink hmm, int t, DVector aqt,
    double Lr,steSumLr;
    float tmp;
    StreamElem *ste;
+   StreamInfo *sti;
    MixtureElem *me;
    MixPDF *mp=NULL;
    WtAcc *wa, *wammi=NULL;
    PreComp *pMix;
    Boolean mmix=FALSE;  /* TRUE if multiple mixture */
-   float wght=0;
+   float wght=0.0;
    float mee_acc_scale =   fbInfo->AccScale * (fbInfo->MPE? fbInfo->aInfo->ac[q].mpe_occscale: 1 ),
       abs_mee_acc_scale = fabs(mee_acc_scale); int local_accindx = (mee_acc_scale > 0 ? fbInfo->num_index : fbInfo->den_index);
 
@@ -1238,6 +1284,7 @@ static double UpMixParms(int q, HLink hmm, int t, DVector aqt,
       for (s=1;s<=fbInfo->S;s++,ste++){
          /* Get observation vector for this state/stream */
          vSize = fbInfo->hset->swidth[s];
+         sti = ste->info;
 
          switch (fbInfo->hsKind){
          case TIEDHS:		          /* if tied mixtures then we only */
@@ -1251,13 +1298,13 @@ static double UpMixParms(int q, HLink hmm, int t, DVector aqt,
             break;
          case PLAINHS:
          case SHAREDHS:
-            M = ste->nMix;
-            mmix = (M>1);
+            M = sti->nMix;
+            mmix = (M>1) ? TRUE : FALSE;
             break;
          }
        
-         wa = ((WtAcc*)ste->hook) + local_accindx;
-         if(DoingFourthAcc) wammi = ((WtAcc*)ste->hook) + add_index;   
+         wa = ((WtAcc*)sti->hook) + local_accindx;
+         if(DoingFourthAcc) wammi = ((WtAcc*)sti->hook) + add_index;   
          steSumLr = 0.0;      /*  zero stream occupation count */
        
        
@@ -1266,7 +1313,7 @@ static double UpMixParms(int q, HLink hmm, int t, DVector aqt,
             switch (fbInfo->hsKind){	/* Get wght and mpdf */
             case TIEDHS:
                m=tmRec->probs[mx].index;
-               wght=MixWeight(fbInfo->hset,ste->spdf.tpdf[m]);
+               wght=MixWeight(fbInfo->hset,sti->spdf.tpdf[m]);
                mp=tmRec->mixes[m];
                break;
             case DISCRETEHS:
@@ -1277,7 +1324,7 @@ static double UpMixParms(int q, HLink hmm, int t, DVector aqt,
             case PLAINHS:
             case SHAREDHS:
                m = mx;
-               me = ste->spdf.cpdf+m;
+               me = sti->spdf.cpdf+m;
                wght = MixWeight(fbInfo->hset,me->weight);
                mp=me->mpdf;
                break;
@@ -1352,10 +1399,10 @@ static double UpMixParms(int q, HLink hmm, int t, DVector aqt,
             }
          }
    
-         wa = ((WtAcc*)ste->hook) + local_accindx;
+         wa = ((WtAcc*)sti->hook) + local_accindx;
          wa->occ += steSumLr * abs_mee_acc_scale;
          if(DoingFourthAcc){   /* do 4th acc if MPE with MMI prior */            
-            wammi = ((WtAcc*)ste->hook) + add_index;
+            wammi = ((WtAcc*)sti->hook) + add_index;
             wammi->occ += steSumLr;
          }
       }
@@ -1385,11 +1432,13 @@ static void CheckData(char *fn, BufferInfo *info)
 /* StepForward: Step from 1 to T calc'ing Alpha columns and updating parms */
 static void StepForward()
 {
-   int q,t,negs;
+   int q,t;
+   long negs;
    DVector aqt,aqt1,bqt,bqt1,tmp;
    double occ, total_occ;
    HLink hmm, up_hmm;
-   ResetObsCache();
+
+   ResetObsCache(fbInfo->xfinfo);
    ZeroAlpha(1, fbInfo->Q); /*Zero the alphat column,*/
    for(q=1;q<=fbInfo->Q;q++){ /*And switch: now the alphat1 column is zero.*/
       Acoustic *ac = fbInfo->aInfo->ac + q;
@@ -1399,7 +1448,7 @@ static void StepForward()
   
    for (q=1;q<=fbInfo->Q;q++){  /* inc access counters */
       up_hmm = fbInfo->aInfo->ac[q].hmm;
-      negs = (int)up_hmm->hook+1;
+      negs = (long)up_hmm->hook+1;
       up_hmm->hook = (void *)negs;
    }
 
@@ -1453,7 +1502,7 @@ static void StepForward()
 
 
 
-static  char buf1[255];
+static  char buf1[MAXSTRLEN];
 static  Boolean eSep;
 
  
@@ -1534,7 +1583,7 @@ void FBLatFirstPass(FBLatInfo *_fbInfo, FileFormat dff, char * datafn, char *dat
       printf(" Processing Data: %s\n", NameOf(datafn,buf1));
       fflush(stdout);
    }
-   MPE = fbInfo->MPE = (MPECorrLat!=NULL);
+   MPE = fbInfo->MPE = ((MPECorrLat!=NULL) ? TRUE:FALSE);
   
    ArcFromLat(fbInfo->aInfo, fbInfo->hset);
    if(MPE) AttachMPEInfo(fbInfo->aInfo);
@@ -1567,11 +1616,11 @@ void FBLatFirstPass(FBLatInfo *_fbInfo, FileFormat dff, char * datafn, char *dat
       SetStreamWidths(fbInfo->al_info.tgtPK,fbInfo->al_info.tgtVecSize,fbInfo->hset->swidth,&eSep);
     
       fbInfo->al_ot = MakeObservation(&fbInfo->miscStack,fbInfo->hset->swidth,fbInfo->al_info.tgtPK,
-                                      fbInfo->hsKind==DISCRETEHS,eSep);
+                                      ((fbInfo->hsKind==DISCRETEHS) ? TRUE:FALSE),eSep);
 
       if (fbInfo->twoDataFiles){ /*todo, fix use of this. */
          fbInfo->up_ot = MakeObservation(&fbInfo->miscStack,fbInfo->hset->swidth,fbInfo->up_info.tgtPK,
-                                         fbInfo->hsKind==DISCRETEHS,eSep);
+                                         ((fbInfo->hsKind==DISCRETEHS) ? TRUE:FALSE),eSep);
       }
       fbInfo->firstTime = FALSE;
    }
@@ -1838,6 +1887,12 @@ void InitFBLat(void)
 
 
 
+/* EXPORT->ResetFBLat: reset module */
+void ResetFBLat (void)
+{
+   return;
+}
+
 /* EXPORT-> InitialiseFB Sets up heaps etc for Forward-Backwards */
 
 void InitialiseFBInfo(FBLatInfo *fbInfo,
@@ -1902,7 +1957,4 @@ void SetDoingFourthAcc(Boolean DO, int indx){
    add_index = indx;
 }
 
-
-/* --------------------------------- End HFBLat.c -------------------------------------- */
-
-
+/* ------------------------ End of HFBLat.c ------------------------ */

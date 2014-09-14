@@ -20,10 +20,59 @@
 # File: configure.ac source file for generating configure script
 # ----------------------------------------------------------- 
 
+#  *** THIS IS A MODIFIED VERSION OF HTK ***                        #
+# ----------------------------------------------------------------- #
+#           The HMM-Based Speech Synthesis System (HTS)             #
+#           developed by HTS Working Group                          #
+#           http://hts.sp.nitech.ac.jp/                             #
+# ----------------------------------------------------------------- #
+#                                                                   #
+#  Copyright (c) 2001-2011  Nagoya Institute of Technology          #
+#                           Department of Computer Science          #
+#                                                                   #
+#                2001-2008  Tokyo Institute of Technology           #
+#                           Interdisciplinary Graduate School of    #
+#                           Science and Engineering                 #
+#                                                                   #
+# All rights reserved.                                              #
+#                                                                   #
+# Redistribution and use in source and binary forms, with or        #
+# without modification, are permitted provided that the following   #
+# conditions are met:                                               #
+#                                                                   #
+# - Redistributions of source code must retain the above copyright  #
+#   notice, this list of conditions and the following disclaimer.   #
+# - Redistributions in binary form must reproduce the above         #
+#   copyright notice, this list of conditions and the following     #
+#   disclaimer in the documentation and/or other materials provided #
+#   with the distribution.                                          #
+# - Neither the name of the HTS working group nor the names of its  #
+#   contributors may be used to endorse or promote products derived #
+#   from this software without specific prior written permission.   #
+#                                                                   #
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            #
+# CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       #
+# INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          #
+# MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          #
+# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS #
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          #
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   #
+# TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     #
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON #
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   #
+# OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    #
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           #
+# POSSIBILITY OF SUCH DAMAGE.                                       #
+# ----------------------------------------------------------------- #
+
 # After editing this file, run "autoconf" to regenerate "configure".
 
-AC_INIT(HTK,3.4.1,htk-mgr@eng.cam.ac.uk)
+AC_INIT(HTS,2.2, hts-users@sp.nitech.ac.jp)
 AC_COPYRIGHT(Copyright 2003-2009 University of Cambridge)
+AC_COPYRIGHT(Copyright 2001-2011 Nagoya Institute of Technology)
+AC_COPYRIGHT(Copyright 2001-2008 Tokyo Institute of Technology)
+
+AC_PREFIX_DEFAULT(/usr/local/HTS-2.2beta)
 
 dnl Checks for programs.
 AC_PROG_MAKE_SET
@@ -33,9 +82,28 @@ AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_RANLIB
 
+dnl Check for ar
+AN_MAKEVAR([AR], [AC_PROG_AR])
+AN_PROGRAM([ar], [AC_PROG_AR])
+AC_DEFUN([AC_PROG_AR], [AC_CHECK_TOOL(AR, ar, :)])
+AC_PROG_AR
+
 dnl Checks for libraries.
 AC_CHECK_LIB([X11], [main])
-AC_CHECK_LIB([m], [main])
+AC_CHECK_LIB([m], [main],,AC_MSG_ERROR(Cannot find libm))
+
+dnl Checks for FORTRAN
+AC_PROG_F77
+if test -z "$F77"; then
+	LBFGS=''
+	FLIBS=''
+else
+	LBFGS='lbfgs.o'
+	AC_F77_LIBRARY_LDFLAGS
+	CFLAGS="$CFLAGS -D_HAS_FORTRAN"
+fi
+AC_SUBST(FLIBS, $FLIBS)
+AC_SUBST(LBFGS, $LBFGS)
 
 dnl Checks for header files.
 AC_CONFIG_HEADERS
@@ -45,6 +113,7 @@ AC_CHECK_HEADERS(errno.h fcntl.h float.h limits.h malloc.h memory.h stdlib.h str
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
+AC_C_VOLATILE
 AC_TYPE_SIZE_T
 AC_HEADER_TIME
 AC_STRUCT_TM
@@ -53,13 +122,18 @@ dnl Checks for library functions.
 AC_PROG_GCC_TRADITIONAL
 AC_FUNC_MEMCMP
 AC_FUNC_MALLOC
+AC_FUNC_REALLOC
 AC_FUNC_STRTOD
 AC_TYPE_SIGNAL
 AC_FUNC_VPRINTF
+AC_HEADER_STDBOOL
 AC_CHECK_FUNCS(floor gettimeofday memmove memset modf pow socket sqrt strchr strcspn strrchr strspn strstr strtol)
+AC_CHECK_FUNCS(strdup)
 
 
 AC_CANONICAL_HOST
+AC_C_BIGENDIAN
+AC_CHECK_SIZEOF(int *)
 
 dnl Traditional HTK build?
 dnl if enabled this will install in $bindir.$host_cpu
@@ -74,8 +148,8 @@ AC_ARG_ENABLE(hdecode,
 
 dnl Build LM Tools
 AC_ARG_ENABLE(hlmtools,
-		AS_HELP_STRING([--disable-hlmtools],
-		[don't build Language Modelling tools]))
+		AS_HELP_STRING([--enable-hlmtools],
+		[build Language Modelling tools]))
 
 dnl Disable building for X
 dnl i.e. use HGraf.null, and don't build HSLab
@@ -95,6 +169,12 @@ case "$CC" in
 		CFLAGS="-Wall -Wno-switch $CFLAGS"
 		;;		
 esac
+dnl Use -Wall if using g77
+case "$F77" in
+	g77*)
+		FFLAGS="-Wall $FFLAGS"
+	;;
+esac
 
 
 dnl customise for htk comilpation
@@ -108,42 +188,57 @@ esac
 
 case "$host" in
 		*x86_64*linux*)
-				CFLAGS="-m32 -ansi -D_SVID_SOURCE -DOSS_AUDIO -D'ARCH=\"$host_cpu\"' $CFLAGS"
+				CFLAGS="-ansi -D_SVID_SOURCE -DOSS_AUDIO -D'ARCH=\"$host_cpu\"' $CFLAGS"
+				FFLAGS="$FFLAGS"
+				AC_MSG_CHECKING(whether to compile in 32-bit or 64-bit mode)
+				if test x$ac_cv_sizeof_int_p = x"4"; then
+					AC_MSG_RESULT(32-bit)
 				LDFLAGS="-L/usr/X11R6/lib $LDFLAGS"
+				elif test x$ac_cv_sizeof_int_p = x"8"; then
+					AC_MSG_RESULT(64-bit)
+					LDFLAGS="-L/usr/X11R6/lib64 $LDFLAGS"
+				fi
 				ARCH=linux
 				trad_bin_dir=linux
 		;;
 		*linux*)
 				CFLAGS="-ansi -D_SVID_SOURCE -DOSS_AUDIO -D'ARCH=\"$host_cpu\"' $CFLAGS"
+				FFLAGS="$FFLAGS"
 				LDFLAGS="-L/usr/X11R6/lib $LDFLAGS"
 				ARCH=linux
 				trad_bin_dir=linux
 		;;
 		*pc-solaris*)
 				CFLAGS="-ansi -I/usr/openwin/include -O2 -DSOLARIS16_AUDIO -DBSD_COMP -D'ARCH=\"$host_cpu\"' $CFLAGS"
+				FFLAGS="-O2 $FFLAGS"
 				LDFLAGS="-L/usr/openwin/lib -ldl -lsocket -lnsl -lintl $LDFLAGS"
 		;;
 		*sun*)
 				CFLAGS="-ansi -I/usr/openwin/include -O2 -DSOLARIS16_AUDIO -DBSD_COMP -D'ARCH=\"$host_cpu\"' $CFLAGS"
+				FFLAGS="-O2 $FFLAGS"
 				LDFLAGS="-L/usr/openwin/lib -ldl -lsocket -lnsl -lintl $LDFLAGS"
 		;;
 		*sgi*)
 				CFLAGS="-O -DSGI_AUDIO  -D'ARCH=\"$host_cpu\"' $CFLAGS"
+				FFLAGS="$FFLAGS"
 				LDFLAGS="-laudio -lmalloc $LDFLAGS"
 		;;
 		*hp*)
 				CFLAGS="+e -O -I/usr/include/X11R5 -I/usr/include/audio -I/opt/audio/include -D_HPUX_SOURCE -Aa -DHPUX_AUDIO -DUSE_TIMER  -D'ARCH=\"$host_cpu\"' $CFLAGS"
+				FFLAGS="$FFLAGS"
 				LDFLAGS="-L/opt/audio/lib -lAlib $LDFLAGS"
 		;;
 		*cygwin)
 				CFLAGS="-ansi -DCYGWIN -D'ARCH=\"ASCII\"' $CFLAGS"
+				FFLAGS="$FFLAGS"
 				LDFLAGS="-L/usr/X11R6/lib $LDFLAGS"
 				ARCH=ASCII
-				CPU=darwin
+				CPU=cygwin
 				BINARY_EXTENSION=.exe
 		;;				
 		i386*darwin*)
 				CFLAGS="-ansi -g -O2 -DNO_AUDIO -D'ARCH=\"darwin\"' -I/usr/include/malloc $CFLAGS"
+				FFLAGS="-gdwarf-2 -O2 $$FFLAGS"
 				LDFLAGS="-L/usr/X11R6/lib $LDFLAGS"
 				ARCH=darwin
 				Objcopy=echo
@@ -152,8 +247,9 @@ case "$host" in
 				SHRLF="-shared"
 				LIBEXT=dylib
 		;;				
-		darwin)
-				CFLAGS="-ansi -g -O2 -DNO_AUDIO -D'ARCH=\"darwin\"' $CFLAGS"
+		*darwin*)
+				CFLAGS="-ansi -g -O2 -DNO_AUDIO -D'ARCH=\"darwin\"' -I/usr/include/malloc $CFLAGS"
+				FFLAGS="-gdwarf-2 -O2 $$FFLAGS"
 				LDFLAGS="-L/usr/X11R6/lib $LDFLAGS"
 				ARCH=darwin
 				Objcopy=echo
@@ -163,6 +259,39 @@ case "$host" in
 				LIBEXT=dylib
 		;;				
 esac
+
+dnl define MAXSTRLEN if users want to change it to other value
+AC_ARG_VAR([MAXSTRLEN],[max length of strings (default=1024)])
+if test -n "$MAXSTRLEN" -a $MAXSTRLEN!=1024; then
+	AC_MSG_CHECKING(user-defined maximum length of strings)
+	CFLAGS="$CFLAGS -DMAXSTRLEN=$MAXSTRLEN"
+	AC_MSG_RESULT($MAXSTRLEN)
+fi
+
+dnl define MAXFNAMELEN if users want to change it to other value
+AC_ARG_VAR([MAXFNAMELEN],[max length of file names (default=1024)])
+if test -n "$MAXFNAMELEN" -a $MAXFNAMELEN!=1024; then
+	AC_MSG_CHECKING(user-defined maximum length of file names)
+	CFLAGS="$CFLAGS -DMAXFNAMELEN=$MAXFNAMELEN"
+	AC_MSG_RESULT($MAXFNAMELEN)
+fi
+
+dnl define PAT_LEN if users want to change it to other value
+AC_ARG_VAR([PAT_LEN],[max length of patterns (default=2048)])
+if test -n "$PAT_LEN" -a $PAT_LEN!=2048; then
+	AC_MSG_CHECKING(user-defined maximum length of file names)
+	CFLAGS="$CFLAGS -DPAT_LEN=$PAT_LEN"
+	AC_MSG_RESULT($PAT_LEN)
+fi
+
+dnl define SMAX if users want to change it to other value
+AC_ARG_VAR([SMAX],[max number of streams (default=30)])
+if test -n "$SMAX" -a $SMAX!=30; then
+	AC_MSG_CHECKING(user-defined maximum number of streams)
+	CFLAGS="$CFLAGS -DSMAX=$SMAX"
+	AC_MSG_RESULT($SMAX)
+fi
+
 
 dnl Process customised options
 make_all=htktools
@@ -177,13 +306,13 @@ case "$enable_trad_htk" in
 	;;
 esac
 case "$enable_hlmtools" in
-     no)
-	build_notes="$build_notes The Language Modelling tools will not be built. You can build them manually later by running 'make hlmtools install-hlmtools'"
-	;;
-     *)
+     yes)
 	make_all="$make_all hlmtools"
 	make_install="$make_install install-hlmtools"
 	build_notes="$build_notes Language Modelling tools will be built."
+	;;
+     *)
+	build_notes="$build_notes The Language Modelling tools will not be built. You can build them manually later by running 'make hlmtools install-hlmtools'"
 	;;
 esac
 case "$enable_hdecode" in
@@ -191,9 +320,11 @@ case "$enable_hdecode" in
 	make_all="$make_all hdecode"
 	make_install="$make_install install-hdecode"
 	build_notes="$build_notes Large Vocabulary recogniser HDecode will be built."
+	LIBLV="HTKLiblv.a"
 	;;
      *)
 	build_notes="$build_notes HDecode will not be built. You can build it manually later by running 'make hdecode install-hdecode'"
+	LIBLV=""
 	;;
 esac
 case "$enable_htkbook" in
@@ -222,6 +353,7 @@ AC_SUBST(make_install, $make_install)
 AC_SUBST(HSLAB, $HSLAB)
 AC_SUBST(HGRAF, $HGRAF)
 AC_SUBST(BINARY_EXTENSION, $BINARY_EXTENSION)
+AC_SUBST(LIBLV)
 
 AC_OUTPUT(HTKLib/Makefile HTKTools/Makefile HLMLib/Makefile HLMTools/Makefile HTKLVRec/Makefile Makefile)
 

@@ -19,8 +19,53 @@
 /*      File: HAudio.c: Audio Input/Output Interface           */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *haudio_version = "!HVER!HAudio:   3.4.1 [CUED 12/03/09]";
-char *haudio_vc_id = "$Id: HAudio.c,v 1.1.1.1 2006/10/11 09:54:57 jal58 Exp $";
+char *haudio_vc_id = "$Id: HAudio.c,v 1.9 2011/06/16 04:18:28 uratec Exp $";
 
 #include "HShell.h"        /* HTK Libraries */
 #include "HMem.h"
@@ -347,7 +392,11 @@ static Boolean IsVAXOrder(void)
    px = &x;
    pc = (unsigned char *) px;
    *pc = 1; *(pc+1) = 0;         /* store bytes 1 0 */
-   return x==1;          /* does it read back as 1? */
+
+   if (x==1)          /* does it read back as 1? */
+      return TRUE;
+   else 
+      return FALSE;
 }
 #endif
 
@@ -1889,6 +1938,12 @@ void InitAudio(void)
 #endif
 }
 
+/* EXPORT->ResetAudio: reset audio module */
+void ResetAudio(void)
+{
+   return;   /* do nothing */
+}
+
 /* --------------------------- Status Handling ------------------- */
 
 static char * aiStatMap[] = { "AI_CLEARED","AI_WAITSIG",
@@ -2362,4 +2417,4 @@ int SamplesToPlay(AudioOut a)
    return OutSamples(a);
 }
 
-/* ------------------------ End of HAudio.c ------------------------- */
+/* ------------------------ End of HAudio.c ------------------------ */

@@ -19,8 +19,53 @@
 /*         File: HLabel.c:   Speech Label File Input           */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hlabel_version = "!HVER!HLabel:   3.4.1 [CUED 12/03/09]";
-char *hlabel_vc_id = "$Id: HLabel.c,v 1.1.1.1 2006/10/11 09:54:57 jal58 Exp $";
+char *hlabel_vc_id = "$Id: HLabel.c,v 1.12 2011/06/16 04:18:29 uratec Exp $";
 
 #include "HShell.h"
 #include "HMem.h"
@@ -112,7 +157,7 @@ static double htkLabelTimeScale = 1; /* multiply all times in HTK format labels 
 /* --------------- Global MLF Data Structures  --------- */
 
 #define MLFCHUNKSIZE 500
-#define MAXMLFS 200
+#define MAXMLFS 1000
 
 static int      numMLFs = 0;     /* number of MLF files opened */
 static FILE   * mlfile[MAXMLFS]; /* array [0..numMLFs-1] of MLF file */
@@ -190,6 +235,14 @@ void InitLabel(void)
    }
 }
 
+/* EXPORT->ResetLbel: reset module */
+void ResetLabel(void)
+{
+   ResetHeap(&mlfHeap);
+   ResetHeap(&namecellHeap);
+   
+   return;
+}
 
 /* EXPORT->GetLabId: return id of given name */
 LabId GetLabId(char *name, Boolean insert)
@@ -589,7 +642,7 @@ typedef enum _TrSymbol TrSymbol;
 static int curch = ' ';
 static TrSymbol trSym = TRNULL;
 static double trNum;
-static char trStr[256];
+static char trStr[MAXSTRLEN];
 
 /* IsNumeric: returns true if given string is a number */
 Boolean IsNumeric(char *s)
@@ -720,7 +773,7 @@ static void ExtendAux(MemHeap *x, LabList *ll, int n)
    int i,oldn;
    LabId *id;
    float *s;
-   LLink p;
+   LLink p = NULL;
 
    if (n>=99)
       HError(6570, "ExtendAux: Too many auxiliary fields in label file");
@@ -755,7 +808,7 @@ static LabList * LoadHTKList(MemHeap *x, Source *src, int alt)
    int n,maxAux = 0;
    Boolean ok;
    
-   ok = (transAlt==0) || (transAlt == alt);
+   ok = ((transAlt==0) || (transAlt == alt)) ? TRUE : FALSE;
    if (ok) ll = CreateLabelList(x,maxAux);  /* assume no aux labels */
    if (trace&T_HTKL)
       printf("HLabel: looking for lab list\n");
@@ -966,7 +1019,7 @@ static void LoadSCRIBELabels(MemHeap *x, Transcription *t, Source *src)
    float score;
    ScribeLab ltype, lx;
    double sp;
-   char buf[256];
+   char buf[MAXSTRLEN];
    
    if (!GetConfFlt(cParm,numParm,"SOURCERATE",&sp))  
       sp = 500.0;   /* actual SCRIBE rate */
@@ -1020,11 +1073,11 @@ static void LoadSCRIBELabels(MemHeap *x, Transcription *t, Source *src)
 /* EXPORT->TriStrip: Remove contexts of form A- and +B from s */
 void TriStrip(char *s)
 {
-   char buf[100],*p;
+   char buf[MAXSTRLEN],*p;
    
    if ((p = strchr(s,'-')) == NULL) p = s; else ++p;
    strcpy(buf,p);
-   if ((p = strrchr(buf,'+')) != NULL) 
+   if ((p = strchr(buf,'+')) != NULL) 
       *p = '\0';
    strcpy(s,buf);
 }
@@ -1093,7 +1146,8 @@ static Boolean NoMLFHeader(char *s)
    }
    if (len != 7) return TRUE;
    *(e+1) = '\0';
-   return (strcmp(s,"#!MLF!#") != 0);
+   if (strcmp(s,"#!MLF!#") != 0) return TRUE;
+   else return FALSE;
 }
 
 static Boolean incSpaces;
@@ -1162,10 +1216,10 @@ static unsigned MLFHash(char *s)
                            and append the entries to the MLF table */
 void LoadMasterFile(char *fname)
 {
-   char buf[1024];
+   char buf[MAXFNAMELEN];
    char *men;        /* end of mode indicator */
    char *pst,*pen;   /* start/end of pattern (inc quotes) */
-   char *dst,*den;   /* start/end of subdirectory (inc quotes) */
+   char *dst=NULL,*den=NULL;   /* start/end of subdirectory (inc quotes) */
    Boolean inEntry = FALSE;   /* ignore ".." within an entry */
    MLFEntry *e;
    FILE *f;
@@ -1174,12 +1228,12 @@ void LoadMasterFile(char *fname)
       HError(6520,"LoadMasterFile: MLF file limit reached [%d]",MAXMLFS);
    if ((f = fopen(fname,"rb")) == NULL)
       HError(6510,"LoadMasterFile: cannot open MLF %s",fname);
-   if (fgets(buf,1024,f) == NULL)
+   if (fgets(buf,MAXFNAMELEN,f) == NULL)
       HError(6513,"LoadMasterFile: MLF file is empty");
    if (NoMLFHeader(buf))
       HError(6551,"LoadMasterFile: MLF file header is missing"); 
    incSpaces=FALSE;
-   while (fgets(buf,1024,f) != NULL){
+   while (fgets(buf,MAXFNAMELEN,f) != NULL){
       if (!inEntry && FindMLFStr(buf,&pst,&pen)) {
          e = (MLFEntry *)New(&mlfHeap,sizeof(MLFEntry));
          e->type = FindMLFType(pen+1,&men);
@@ -1238,10 +1292,10 @@ FILE *GetMLFFile(int fidx)
 Boolean IsMLFFile(char *fn)
 {
    FILE *f;
-   char buf[1024];
+   char buf[MAXFNAMELEN];
    
    if ((f = fopen(fn,"rb")) == NULL) return FALSE;
-   if (fgets(buf,1024,f) == NULL) {
+   if (fgets(buf,MAXFNAMELEN,f) == NULL) {
       fclose(f); return FALSE;
    }
    if (NoMLFHeader(buf)) {
@@ -1260,7 +1314,7 @@ MLFEntry *GetMLFTable(void)
               this new name is suffixed to subdir and stored in tryspec */            
 static void SplitPath(char *path, char *name, char *subdir, char *tryspec)
 {
-   char buf1[1024],buf2[1024],*p;
+   char buf1[MAXFNAMELEN],buf2[MAXFNAMELEN],*p;
    char pch[2] = " ";
    
    pch[0] = PATHCHAR;
@@ -1285,7 +1339,7 @@ static FILE * OpenLabFile(char *fname, Boolean *isMLF)
 {
    FILE *f;
    MLFEntry *e;
-   char path[1024],name[256],tryspec[1024];
+   char path[MAXFNAMELEN],name[MAXSTRLEN],tryspec[MAXFNAMELEN];
    Boolean isMatch = FALSE;
    unsigned fixedHash;     /* hash value for PAT_FIXED */
    unsigned anypathHash;   /* hash value for PAT_ANYPATH */ 
@@ -1315,7 +1369,7 @@ static FILE * OpenLabFile(char *fname, Boolean *isMLF)
          if (trace&T_MAT) 
             printf("HLabel:  anypath match against %s[%d]\n",e->pattern,e->patHash);
          if (e->patHash == anypathHash)
-            isMatch = strcmp(e->pattern,fnStart) == 0;
+            isMatch = (strcmp(e->pattern,fnStart) == 0) ? TRUE : FALSE;
          else
             isMatch = FALSE;
          break;
@@ -1323,7 +1377,7 @@ static FILE * OpenLabFile(char *fname, Boolean *isMLF)
          if (trace&T_MAT) 
             printf("HLabel:  fixed match against %s[%d]\n",e->pattern,e->patHash);
          if (e->patHash == fixedHash)
-            isMatch = strcmp(e->pattern,fname) == 0;
+            isMatch = (strcmp(e->pattern,fname) == 0) ? TRUE : FALSE;
          else
             isMatch = FALSE;
          break;
@@ -1381,6 +1435,7 @@ Transcription *LOpen(MemHeap *x, char * fname, FileFormat fmt)
    char buf[MAXSTRLEN];
    Transcription *t;
    Boolean isMLF;
+   int i;
 
    if (fmt == UNDEFF){
       if (GetConfStr(cParm,numParm,"SOURCELABEL",buf))
@@ -1401,7 +1456,8 @@ Transcription *LOpen(MemHeap *x, char * fname, FileFormat fmt)
    default:
       HError(6572,"LOpen: Illegal label file format [%d]",fmt);
    }
-   if (!isMLF) fclose(f);
+   if (!isMLF) 
+      i=fclose(f);
    if (transLev > 0) FilterLevel(t,transLev-1);
    return t;
 }
@@ -1566,4 +1622,4 @@ ReturnStatus LSave(char *fname, Transcription *t, FileFormat fmt)
    return(SUCCESS);
 }
 
-/* ------------------------ End of HLabel.c ------------------------- */
+/* ------------------------ End of HLabel.c ------------------------ */

@@ -27,8 +27,53 @@
 /*         File: HDecode.c  HTK Large Vocabulary Decoder       */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hdecode_version = "!HVER!HDecode:   3.4.1 [GE 12/03/09]";
-char *hdecode_sccs_id = "$Id: HDecode.c,v 1.1.1.1 2006/10/11 09:54:55 jal58 Exp $";
+char *hdecode_sccs_id = "$Id: HDecode.c,v 1.13 2011/02/10 08:23:06 uratec Exp $";
 
 /* this is just the tool that handles command line arguments and
    stuff, all the real magic is in HLVNet and HLVRec */
@@ -240,7 +285,7 @@ ReportUsage (void)
 #ifdef TSIDOPT
    printf ("TSIDOPT ");
 #endif   
-   printf ("\n  sizes: PronId=%d  LMId=%d \n", sizeof (PronId), sizeof (LMId));
+   printf ("\n  sizes: PronId=%zd  LMId=%zd \n", sizeof (PronId), sizeof (LMId));
 }
 
 int
@@ -266,7 +311,7 @@ main (int argc, char *argv[])
    InitLVNet ();
    InitLVLM ();
    InitLVRec ();
-   InitAdapt (&xfInfo);
+   InitAdapt (&xfInfo, NULL);
    InitLat ();
 
    if (!InfoPrinted () && NumArgs () == 0)
@@ -679,7 +724,7 @@ DecoderInst *Initialise (void)
    obs = (Observation *) New (&gcheap, outpBlocksize * sizeof (Observation));
    for (i = 0; i < outpBlocksize; ++i)
       obs[i] = MakeObservation (&gcheap, hset.swidth, hset.pkind, 
-                                (hset.hsKind == DISCRETEHS), eSep);
+                                ((hset.hsKind == DISCRETEHS) ? TRUE:FALSE), eSep);
 
    CreateHeap (&inputBufHeap, "Input Buffer Heap", MSTAK, 1, 1.0, 80000, 800000);
 
@@ -692,7 +737,7 @@ DecoderInst *Initialise (void)
    if (xfInfo.useOutXForm) {
       CreateHeap(&regHeap,   "regClassStore",  MSTAK, 1, 0.5, 1000, 8000 );
       /* This initialises things - temporary hack - THINK!! */
-      CreateAdaptXForm(&hset, "tmp");
+      CreateAdaptXForm(&hset, &xfInfo, "tmp");
 
       /* online adaptation not supported yet! */
    }
@@ -1069,10 +1114,13 @@ void DoRecognition (DecoderInst *dec, char *fn)
 
       if (labForm != NULL)
          ReFormatTranscription (trans, pbInfo.tgtSampRate, FALSE, FALSE,
-                                strchr(labForm,'X')!=NULL,
-                                strchr(labForm,'N')!=NULL,strchr(labForm,'S')!=NULL,
-                                strchr(labForm,'C')!=NULL,strchr(labForm,'T')!=NULL,
-                                strchr(labForm,'W')!=NULL,strchr(labForm,'M')!=NULL);
+                                (strchr(labForm,'X')!=NULL) ? TRUE:FALSE,
+                                (strchr(labForm,'N')!=NULL) ? TRUE:FALSE,
+                                (strchr(labForm,'S')!=NULL) ? TRUE:FALSE,
+                                (strchr(labForm,'C')!=NULL) ? TRUE:FALSE,
+                                (strchr(labForm,'T')!=NULL) ? TRUE:FALSE,
+                                (strchr(labForm,'W')!=NULL) ? TRUE:FALSE,
+                                (strchr(labForm,'M')!=NULL) ? TRUE:FALSE);
       
       MakeFN (fn, labDir, labExt, labfn);
 

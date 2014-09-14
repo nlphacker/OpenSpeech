@@ -19,8 +19,53 @@
 /*      File: HCopy.c: Copy one Speech File to another         */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hcopy_version = "!HVER!HCopy:   3.4.1 [CUED 12/03/09]";
-char *hcopy_vc_id = "$Id: HCopy.c,v 1.1.1.1 2006/10/11 09:54:59 jal58 Exp $";
+char *hcopy_vc_id = "$Id: HCopy.c,v 1.10 2011/06/16 04:18:29 uratec Exp $";
 
 #include "HShell.h"
 #include "HMem.h"
@@ -90,7 +135,7 @@ static Wave wv;                 /* main waveform; cat all input to this */
 static ParmBuf pb;              /* main parmBuf; cat input, xform wv to this */
 static Transcription *trans=NULL;/* main labels; cat all input to this */
 static Transcription *tr;       /* current transcription */
-static char labFile[255];       /* current source of trans */
+static char labFile[MAXSTRLEN]; /* current source of trans */
 static HTime off = 0.0;         /* length of files appended so far */
 
 /* ---------------- Memory Management ------------------------- */
@@ -108,6 +153,7 @@ static MemHeap tStack;          /* trace list  stack */
 
 void ReportUsage(void)
 {
+   printf("\nModified for HTS\n");
    printf("\nUSAGE: HCopy [options] src [ + src ...] tgt ...\n\n");
    printf(" Option                                       Default\n\n");
    printf(" -a i     Use level i labels                  1\n");
@@ -119,7 +165,7 @@ void ReportUsage(void)
    printf(" -s t     Start copy at time t                0\n");
    printf(" -t n     Set trace line width to n           70\n");
    printf(" -x s [n] Extract [n'th occ of] label  s      off\n");
-   PrintStdOpts("FGILPOX");
+   PrintStdOpts("FGILPOXS");
 }
 
 /* SetConfParms: set conf parms relevant to this tool */
@@ -317,6 +363,27 @@ int main(int argc, char *argv[])
    }
    if(useMLF) CloseMLFSaveFile();
    if (NumArgs() != 0) HError(-1019,"HCopy: Unused args ignored");
+   
+   if(InitShell(argc,argv,hcopy_version,hcopy_vc_id)<SUCCESS)
+      HError(1000,"HCopy: InitShell failed");
+   InitMem();   InitLabel();
+   InitMath();  InitSigP();
+   InitWave();  InitAudio();
+   InitVQ();    InitModel();
+   if(InitParm()<SUCCESS)  
+      HError(1000,"HCopy: InitParm failed");
+   
+   ResetParm();
+   ResetModel();
+   ResetVQ();
+   ResetAudio();
+   ResetWave();
+   ResetSigP();
+   ResetMath();
+   ResetLabel();
+   ResetMem();
+   ResetShell();
+   
    Exit(0);
    return (0);          /* never reached -- make compiler happy */
 }
@@ -550,7 +617,7 @@ Boolean IsWave(char *srcFile)
    short sampS,kind;
    Boolean isPipe,bSwap,isWave;
    
-   isWave = tgtPK == WAVEFORM;
+   isWave = (tgtPK == WAVEFORM) ? TRUE:FALSE;
    if (tgtPK == ANON){
       if ((srcFF == HTK || srcFF == ESIG) && srcFile != NULL){
          if ((f=FOpen(srcFile,WaveFilter,&isPipe)) == NULL)
@@ -568,7 +635,7 @@ Boolean IsWave(char *srcFile)
                       srcFile);             
             break;
          }
-         isWave = kind == WAVEFORM;
+         isWave = (kind == WAVEFORM) ? TRUE:FALSE;
          FClose(f,isPipe);
       } else
          isWave = TRUE;

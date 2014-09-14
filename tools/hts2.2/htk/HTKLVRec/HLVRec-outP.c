@@ -27,6 +27,50 @@
 /*         File: HLVRec-outP.c OutP calculation and caching    */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
 
 static void ResetOutPCache (OutPCache *cache)
 {
@@ -69,7 +113,7 @@ static OutPCache *CreateOutPCache (MemHeap *heap, HMMSet *hset, int block)
 }
 
 /* SOutP_ID_mix_Block: returns log prob of stream s of observation x */
-LogFloat SOutP_ID_mix_Block(HMMSet *hset, int s, Observation *x, StreamElem *se)
+LogFloat SOutP_ID_mix_Block(HMMSet *hset, int s, Observation *x, StreamInfo *sti)
 {
    int vSize;
    LogDouble px;
@@ -81,10 +125,14 @@ LogFloat SOutP_ID_mix_Block(HMMSet *hset, int s, Observation *x, StreamElem *se)
    assert (hset->hsKind == PLAINHS && hset->hsKind == SHAREDHS);
    
    v = x->fv[s];
+   if (hset->msdflag[s]) {
+      vSize = SpaceOrder(v);
+   } else {
    vSize = VectorSize(v);
    assert (vSize == hset->swidth[s]);
-   me = se->spdf.cpdf+1;
-   if (se->nMix == 1){     /* Single Mixture Case */
+   }
+   me = sti->spdf.cpdf+1;
+   if (sti->nMix == 1){     /* Single Mixture Case */
       mp = me->mpdf; 
       assert (mp->ckind == INVDIAGC);
       /*       px = IDOutP(v,vSize,mp); */
@@ -109,10 +157,11 @@ LogFloat SOutP_ID_mix_Block(HMMSet *hset, int s, Observation *x, StreamElem *se)
       LogDouble bx = LZERO;                   
       int m;
 
-      for (m=1; m<=se->nMix; m++,me++) {
+      for (m=1; m<=sti->nMix; m++,me++) {
          wt = MixLogWeight(hset,me->weight);
          if (wt>LMINMIX) {  
             mp = me->mpdf; 
+            if (!hset->msdflag[s] || vSize == VectorSize(mp->mean))
             /*       px = IDOutP(v,vSize,mp);   */
             {
                int i;
@@ -265,7 +314,7 @@ x      CACHE_FLAG_SET(dec, sIdx);
 /*  outP calculation from HModel.c and extended for new adapt code */
 
 
-static LogFloat SOutP_HMod (HMMSet *hset, int s, Observation *x, StreamElem *se,
+static LogFloat SOutP_HMod (HMMSet *hset, int s, Observation *x, StreamInfo *sti,
                             int id)
 {
    int m;
@@ -278,13 +327,13 @@ static LogFloat SOutP_HMod (HMMSet *hset, int s, Observation *x, StreamElem *se,
    assert (hset->hsKind == SHAREDHS);
 
    v=x->fv[s];
-   me=se->spdf.cpdf+1;
-   if (se->nMix==1){     /* Single Mixture Case */
+   me=sti->spdf.cpdf+1;
+   if (sti->nMix==1){     /* Single Mixture Case */
       bx= MOutP(ApplyCompFXForm(me->mpdf,v,inXForm,&det,id),me->mpdf);
       bx += det;
    } else if (!pde) {
       bx=LZERO;                   /* Multi Mixture Case */
-      for (m=1; m<=se->nMix; m++,me++) {
+      for (m=1; m<=sti->nMix; m++,me++) {
          wt = MixLogWeight(hset,me->weight);
          if (wt>LMINMIX) {   
             px= MOutP(ApplyCompFXForm(me->mpdf,v,inXForm,&det,id),me->mpdf);
@@ -295,10 +344,15 @@ static LogFloat SOutP_HMod (HMMSet *hset, int s, Observation *x, StreamElem *se,
    } else {   /* Partial distance elimination */
       wt = MixLogWeight(hset,me->weight);
       mp = me->mpdf;
+      if (!hset->msdflag[s] || SpaceOrder(v)==VectorSize(mp->mean)) {
       otvs = ApplyCompFXForm(mp,v,inXForm,&det,id);
       px = IDOutP(otvs,VectorSize(otvs),mp);
+      } else {
+         px = LZERO;
+         det = 0.0;
+      }
       bx = wt+px+det;
-      for (m=2,me=se->spdf.cpdf+2;m<=se->nMix;m++,me++) {
+      for (m=2,me=sti->spdf.cpdf+2;m<=sti->nMix;m++,me++) {
          wt = MixLogWeight(hset,me->weight);
 	 if (wt>LMINMIX){
 	    mp = me->mpdf;
@@ -319,10 +373,10 @@ LogFloat POutP_HModel (HMMSet *hset,Observation *x, StateInfo *si, int id)
    int s,S = x->swidth[0];
    
    if (S==1 && si->weights==NULL)
-      return SOutP_HMod(hset,1,x,si->pdf+1, id);
+      return SOutP_HMod(hset,1,x,si->pdf[1].info, id);
    bx=0.0; se=si->pdf+1; w = si->weights;
    for (s=1;s<=S;s++,se++)
-      bx += w[s]*SOutP_HMod(hset,s,x,se, id);
+      bx += w[s]*SOutP_HMod(hset,s,x,se->info, id);
    return bx;
 }
 

@@ -28,6 +28,51 @@
 /*     Using Frame Discrimination.                             */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 #define EXITSTATUS 0 /*2 for gprof.*/
 
 char *hmmirest_version = "!HVER!HMMIRest:   3.4.1 [CUED 12/03/09]";
@@ -114,9 +159,9 @@ static float mixWeightFloor=MINMIX*2; /* Floor for mixture weights */
 
 static int nSnt      = 0;        /* num sentences from current speaker */
 
-static UPDSet uFlags = UPMEANS|UPVARS|UPTRANS|UPMIXES;   /* update flags */
-static UPDSet uFlagsAccs = UPMEANS|UPVARS|UPTRANS|UPMIXES;   /* used in storing accs. */
-static UPDSet uFlagsMLE = 0; /*which we only update with MLE, ignoring the MMI parameters.*/
+static UPDSet uFlags = (UPDSet) (UPMEANS|UPVARS|UPTRANS|UPMIXES);   /* update flags */
+static UPDSet uFlagsAccs = (UPDSet) (UPMEANS|UPVARS|UPTRANS|UPMIXES);   /* used in storing accs. */
+static UPDSet uFlagsMLE = (UPDSet) 0; /*which we only update with MLE, ignoring the MMI parameters.*/
 
 
 static int parMode   = -1;       /* enable one of the parallel modes */
@@ -254,15 +299,17 @@ void SetConfParms(void)
       if (GetConfFlt(cParm,nParm,"E",&f)) E = f;
       if (GetConfFlt(cParm,nParm,"DFACTOROCC",&f)) E = f; /*Back-compat. */
       if (GetConfFlt(cParm,nParm,"HCRIT",&f)) hcrit = f;
-      if (GetConfBool(cParm,nParm,"MPE",&b)){  MPE = b; THREEACCS=MPE&&MPEStoreML; }
-      if (GetConfBool(cParm,nParm,"MWE",&b)){  MPE = b; THREEACCS=MPE&&MPEStoreML; } /* "MWE" has identical effects here but differs in HFBLat.c */
-      if (GetConfBool(cParm,nParm,"MEE",&b)){  MPE = b; THREEACCS=MPE&&MPEStoreML; } /* Back-compat. */
-      if (GetConfBool(cParm,nParm,"MLE",&b)){  ML_MODE=TRUE; THREEACCS=FALSE; 
-      uFlagsMLE =  UPMEANS|UPVARS|UPTRANS|UPMIXES; }
+      if (GetConfBool(cParm,nParm,"MPE",&b)){  MPE = b; THREEACCS=(MPE&&MPEStoreML) ? TRUE:FALSE; }
+      if (GetConfBool(cParm,nParm,"MWE",&b)){  MPE = b; THREEACCS=(MPE&&MPEStoreML) ? TRUE:FALSE; } /* "MWE" has identical effects here but differs in HFBLat.c */
+      if (GetConfBool(cParm,nParm,"MEE",&b)){  MPE = b; THREEACCS=(MPE&&MPEStoreML) ? TRUE:FALSE; } /* Back-compat. */
+      if (GetConfBool(cParm,nParm,"MLE",&b)) {  
+         ML_MODE=TRUE; THREEACCS=FALSE; 
+         uFlagsMLE = (UPDSet) (UPMEANS|UPVARS|UPTRANS|UPMIXES); 
+      }
       if (GetConfBool(cParm,nParm,"MMIPRIOR",&b)){  MMIPrior = b;}
       if (GetConfFlt(cParm,nParm,"MMITAUI",&f)){ MMITauI = f;}
-      if (GetConfFlt(cParm,nParm,"ISMOOTHTAU",&f)){ ISmoothTau = f; MPEStoreML=TRUE; THREEACCS=MPE&&MPEStoreML; }
-      if (GetConfFlt(cParm,nParm,"ICRITOCC",  &f)){ ISmoothTau = f; MPEStoreML=TRUE; THREEACCS=MPE&&MPEStoreML; } /*back-compat. */
+      if (GetConfFlt(cParm,nParm,"ISMOOTHTAU",&f)){ ISmoothTau = f; MPEStoreML=TRUE; THREEACCS=(MPE&&MPEStoreML) ? TRUE:FALSE; }
+      if (GetConfFlt(cParm,nParm,"ICRITOCC",  &f)){ ISmoothTau = f; MPEStoreML=TRUE; THREEACCS=(MPE&&MPEStoreML) ? TRUE:FALSE; } /*back-compat. */
 
       if (GetConfFlt(cParm,nParm,"ISMOOTHTAUT",&f)){ ISmoothTauTrans = f; ISmoothTauTransSet=TRUE; }
       if (GetConfFlt(cParm,nParm,"ISMOOTHTAUW",&f)){ ISmoothTauWeights = f; ISmoothTauWeightsSet=TRUE; }
@@ -321,6 +368,7 @@ void SetConfParms(void)
 
 void ReportUsage(void)
 {
+   printf("\nModified for HTS\n");
    printf("\nUSAGE: HMMIRest [options] hmmList dataFiles...\n\n");
    printf(" Option                                   Default\n\n");
    printf(" -a      Use an input linear transform        off\n");
@@ -358,19 +406,20 @@ void SetuFlags(UPDSet *uFlags)
    char *s;
    
    s=GetStrArg();
-   *uFlags=0;        
+   *uFlags=(UPDSet)0;        
    while (*s != '\0')
       switch (*s++) {
-      case 't': (*uFlags)+=UPTRANS; break;
-      case 'm': (*uFlags)+=UPMEANS; break;
-      case 'v': (*uFlags)+=UPVARS;  break;
-      case 'w': (*uFlags)+=UPMIXES; break;
-      case 'a': (*uFlags)+=UPXFORM; break;
+      case 't': (*uFlags) = (UPDSet) ((*uFlags)+UPTRANS); break;
+      case 'm': (*uFlags) = (UPDSet) ((*uFlags)+UPMEANS); break;
+      case 'v': (*uFlags) = (UPDSet) ((*uFlags)+UPVARS);  break;
+      case 'w': (*uFlags) = (UPDSet) ((*uFlags)+UPMIXES); break;
+      case 'a': (*uFlags) = (UPDSet) ((*uFlags)+UPXFORM); break;
       }
 }
 
 
-void PrintCriteria(){
+void PrintCriteria (void)
+{
    printf("\nMMI criterion per frame is: %f (%f - %f)\n", (totalPr1-totalPr2)/totalT,totalPr1/totalT,totalPr2/totalT);
    if(MPE) printf("\nMPE/MWE criterion is: %f ( %f / %d )\n", TotalCorr/TotalNWords, TotalCorr, TotalNWords);
    if(!MPE || MPEStoreML) printf("\nML criterion per frame is: %f (%f/%d)\n", totalPr1/totalT,totalPr1, totalT);
@@ -410,7 +459,7 @@ int main(int argc, char *argv[])
    InitDict();
    InitLat();
    InitNet();
-   InitAdapt(&xfInfo); 
+   InitAdapt(&xfInfo,NULL); 
 
    if (!InfoPrinted() && NumArgs() == 0)
       ReportUsage();
@@ -437,7 +486,7 @@ int main(int argc, char *argv[])
         break;   
 
       case 'g': ML_MODE=TRUE; THREEACCS=FALSE;/*This is the option used during re-estimation when we are only using one set of accs.*/
-         uFlagsMLE =  UPMEANS|UPVARS|UPTRANS|UPMIXES; /*TODO, check if necessary. */
+         uFlagsMLE = (UPDSet)(UPMEANS|UPVARS|UPTRANS|UPMIXES); /*TODO, check if necessary. */
          break; 
       case 'l':
          maxSnt = GetChkedInt(0,1000,s); break;
@@ -696,6 +745,7 @@ int main(int argc, char *argv[])
 	    }
 	 
             if (UpdateSpkrStats(&hset,&xfInfo, datafn)) nSnt=0 ;
+            fbInfo.xfinfo  = &xfInfo;
             fbInfo.inXForm = xfInfo.inXForm;
             fbInfo.paXForm = xfInfo.paXForm;
 
@@ -709,7 +759,7 @@ int main(int argc, char *argv[])
                strcpy (datafn_lat, datafn);
 
             if(nDenLats > 0){ /* Load denominator (recognition) lattices. */
-               char buf1[1024],buf2[1024],buf3[1024];
+               char buf1[MAXFNAMELEN],buf2[MAXFNAMELEN],buf3[MAXFNAMELEN];
                for(latn = 0; latn<nDenLats;latn++){
                   if ( denLatSubDirPat[0] ){
                      if ( !MaskMatch( denLatSubDirPat , buf1 , datafn_lat ) )
@@ -741,7 +791,7 @@ int main(int argc, char *argv[])
             }
 
             if(nNumLats > 0){  /* Load numerator (correct transcription) lattices. */
-               char buf1[1024],buf2[1024],buf3[1024];
+               char buf1[MAXFNAMELEN],buf2[MAXFNAMELEN],buf3[MAXFNAMELEN];
                for(latn=0;latn<nNumLats;latn++){
                   if ( numLatSubDirPat[0] ){
                      if ( !MaskMatch( numLatSubDirPat , buf1 , datafn_lat ) )
@@ -774,8 +824,8 @@ int main(int argc, char *argv[])
             { /*apply F-B*/
                Boolean DoCorrectSentence,DoRecogLattice;
                int CorrIndex,RecogIndex1, RecogIndex2;
-               DoCorrectSentence = !MPE || (MPE&&MPEStoreML);
-               DoRecogLattice = !ML_MODE;
+               DoCorrectSentence = (!MPE || (MPE&&MPEStoreML)) ? TRUE:FALSE;
+               DoRecogLattice = (!ML_MODE) ? TRUE:FALSE;
 
                CorrIndex = MPE&&!ML_MODE ? 2 : 0;   /* If MPE then the correct transcription ("mle" acc) goes in position 2, if MMI then in 0. */
                RecogIndex1 = MPE ? 0 : 1;  /* If MPE then the first of the indices of the recognition lattice is the "num" acc (0).
@@ -884,6 +934,28 @@ int main(int argc, char *argv[])
       if (updateMode&UPMODE_UPDATE)
         UpdateModels(); 
    }
+
+   /* Reset modules */
+   ResetAdapt(&xfInfo,NULL);
+   ResetNet();
+   ResetLat();
+   ResetDict();
+   ResetArc();
+   ResetExactMPE();
+   ResetFBLat();
+   ResetUtil();
+   ResetTrain();
+   ResetLabel();
+   ResetParm();
+   ResetModel();
+   ResetVQ();
+   ResetWave();
+   ResetAudio();
+   ResetSigP();
+   ResetMath();
+   ResetMem();
+   ResetShell();
+   
    Exit(EXITSTATUS);
    return (0);          /* keep compiler happy */
 }
@@ -892,7 +964,7 @@ int main(int argc, char *argv[])
 
 void Initialise(char *hmmListFn)
 {  
-   char buf[256];
+   char buf[MAXSTRLEN];
 
    CreateHeap(&transStack,   "transStore",    MSTAK, 1, 0.5, 1000,  10000);
    CreateHeap(&accStack,   "accStore",    MSTAK, 1, 1.0, 50000,  500000);
@@ -914,7 +986,7 @@ void Initialise(char *hmmListFn)
    else NumAccs=2;
    
    {
-      uFlagsAccs =  uFlags|(uFlags&UPMEANS||uFlags&UPVARS ? UPMEANS|UPVARS : 0);  
+      uFlagsAccs = (UPDSet) (uFlags|(uFlags&UPMEANS||uFlags&UPVARS ? UPMEANS|UPVARS : 0));  
       /*That modification to uFlags means: if either mean or var is updated, accumulate both.*/
       AttachAccsParallel(&hset, &accStack, uFlagsAccs, NumAccs);
       ZeroAccsParallel(&hset, uFlagsAccs, NumAccs); 
@@ -940,7 +1012,7 @@ void Initialise(char *hmmListFn)
    /*!Deleted*/
 
    /*Initialise those modules.*/
-   InitialiseFBInfo(&fbInfo, &hset,   uFlags|(uFlags&UPMEANS||uFlags&UPVARS ? UPMEANS|UPVARS : 0), twoDataFiles);
+   InitialiseFBInfo(&fbInfo, &hset, (UPDSet)(uFlags|(uFlags&UPMEANS||uFlags&UPVARS ? UPMEANS|UPVARS : 0)), twoDataFiles);
    /*That modification to uFlags means: if either mean or var is updated, accumulate both.*/
  
 
@@ -962,7 +1034,7 @@ void Initialise(char *hmmListFn)
           HError(999,"Can only update linear transforms OR model parameters!");
         xfInfo.useOutXForm = TRUE;
         /* This initialises things - temporary hack - THINK!! */
-        CreateAdaptXForm(&hset, "tmp"); 
+        CreateAdaptXForm(&hset, &xfInfo, "tmp"); 
       }
       printf("\n ");
       if (parMode>=0) printf("Parallel-Mode[%d] ",parMode);
@@ -992,7 +1064,7 @@ void Initialise(char *hmmListFn)
 /* ------------------- Statistics Reporting  -------------------- */
 
 /* PrintStats: for given hmm */
-void PrintStats(FILE *f, int n, HLink hmm, int numEgs)
+void PrintStats(FILE *f, int n, HLink hmm, long numEgs)
 {
    WtAcc *wa;
    char buf[MAXSTRLEN];
@@ -1001,10 +1073,10 @@ void PrintStats(FILE *f, int n, HLink hmm, int numEgs)
     
    N = hmm->numStates;
    ReWriteString(HMMPhysName(&hset,hmm),buf,DBL_QUOTE);
-   fprintf(f,"%4d %14s %4d ",n,buf,numEgs);
+   fprintf(f,"%4d %14s %4ld ",n,buf,numEgs);
    for (i=2;i<N;i++) {
       si = hmm->svec[i].info;
-      wa = (WtAcc *)((si->pdf+1)->hook);
+      wa = (WtAcc *)(si->pdf[1].info->hook);
       fprintf(f," %10f",wa->occ);
    }
    fprintf(f,"\n");
@@ -1026,7 +1098,7 @@ void StatReport(void) /*This is used by other programs so I have had to change i
    px=1;
    do {
       hmm = hss.hmm;
-      PrintStats(f,px,hmm,(int)hmm->hook);
+      PrintStats(f,px,hmm,(long)hmm->hook);
       px++;
    } while (GoNextHMM(&hss));
    EndHMMScan(&hss);
@@ -1348,18 +1420,20 @@ Boolean UpdateGauss(int stream, MixPDF *mp){
 
 
 
-void UpdateWeightsAndTrans(void){
+void UpdateWeightsAndTrans (void)
+{
    HMMScanState hss;
    HLink hmm;
-   int px,n;
-   void UpdateWeight(int s, StreamElem *ste);
+   int px;
+   long n;
+   void UpdateWeight(const int s, StreamInfo *sti);
 
    NewHMMScan(&hset,&hss);
 
 
    while(GoNextStream(&hss,FALSE)){
       if(uFlags&UPMIXES)
-         UpdateWeight(hss.s, hss.ste);
+         UpdateWeight(hss.s, hss.sti);
    }
    EndHMMScan(&hss);
 
@@ -1368,7 +1442,7 @@ void UpdateWeightsAndTrans(void){
    do{
       void UpdateTrans(int px, HLink hmm);
       hmm=hss.hmm;
-      n = (int)hmm->hook; /*The number of training egs seen*/
+      n = (long)hmm->hook; /*The number of training egs seen*/
 
       /* n is NO LONGER USED. */
 
@@ -1377,18 +1451,21 @@ void UpdateWeightsAndTrans(void){
       px++;
    }while (GoNextHMM(&hss));
    EndHMMScan(&hss);
+   
+   return;
 }
 
 
 static void FixHMMForICrit();
 
 
-static void FixWeightsForICrit(float Tau, Boolean THREEACCS){
+static void FixWeightsForICrit(float Tau, Boolean THREEACCS)
+{
    HMMScanState hss;
    NewHMMScan(&hset,&hss); 
    while(GoNextStream(&hss,FALSE)){
       WtAcc *wa_src, *wa_dst; int m,M;
-      M = hss.M; wa_dst = (WtAcc*)hss.ste->hook; wa_src = (THREEACCS ? wa_dst+2 : wa_dst); /* THREEACCS should be true for the forseeable use of this. */
+      M = hss.M; wa_dst = (WtAcc*)hss.sti->hook; wa_src = (THREEACCS ? wa_dst+2 : wa_dst); /* THREEACCS should be true for the forseeable use of this. */
 
       for(m=1;m<=M;m++) wa_dst->c[m] += Tau * (wa_src->occ ? wa_src->c[m]/wa_src->occ : 1/M);
       if(!wa_src->occ) HError(-1, "wa_src->occ zero, in FixWeightsForICrit.");
@@ -1397,8 +1474,10 @@ static void FixWeightsForICrit(float Tau, Boolean THREEACCS){
    EndHMMScan(&hss); 
 }
 
-static void FixTransForICrit(float Tau, Boolean THREEACCS){
+static void FixTransForICrit(float Tau, Boolean THREEACCS)
+{
    HMMScanState hss;
+
    NewHMMScan(&hset,&hss); 
    do{
       TrAcc *ta_src, *ta_dst; int m,M;
@@ -1408,7 +1487,7 @@ static void FixTransForICrit(float Tau, Boolean THREEACCS){
          int n;
          if(ta_src->occ[m] != 0){
             for(n=1;n<=M;n++){
-               ta_dst->tran[m][n] += Tau /*not * M!*/  *  ta_src->tran[m][n]/ta_src->occ[m];
+               ta_dst->tran[m][n] += Tau * ta_src->tran[m][n]/ta_src->occ[m]; /* Tau! not * M!*/ 
             }
             ta_dst->occ[m] += Tau;
          }
@@ -1418,7 +1497,7 @@ static void FixTransForICrit(float Tau, Boolean THREEACCS){
 }
 
 /* Calclulate MMI acc and save it in the orignial ML acc position, i.e., 3rd acc */
-static void GetMMIAccMix(int stream, MixPDF *mp)
+static void GetMMIAccMix (const int stream, MixPDF *mp)
 {
    int i,k,vSize;
    float occ1,occ2,D,s,mmimean,mmivar;
@@ -1468,7 +1547,8 @@ static void GetMMIAccMix(int stream, MixPDF *mp)
 }
 
 
-static void _FixHMMForICrit(float Tau, Boolean THREEACCS){
+static void _FixHMMForICrit(float Tau, Boolean THREEACCS)
+{
    /* Normally both Mu and Var occupancy will be identical. */
    HMMScanState hss;
    NewHMMScan(&hset,&hss); 
@@ -1512,7 +1592,8 @@ static void _FixHMMForICrit(float Tau, Boolean THREEACCS){
 }
 
 
-void AddPriorsFromPriorHMM(int dst_index, float Tau, float K, Boolean IsMMI, float ISmoothTau){
+void AddPriorsFromPriorHMM(int dst_index, float Tau, float K, Boolean IsMMI, float ISmoothTau)
+{
    /* Normally both Mu and Var occupancy will be identical. */
    HMMScanState hss, hss_prior;
    NewHMMScan(&hset,&hss); NewHMMScan(&hset_prior,&hss_prior); 
@@ -1560,22 +1641,26 @@ void AddPriorsFromPriorHMM(int dst_index, float Tau, float K, Boolean IsMMI, flo
    EndHMMScan(&hss);    EndHMMScan(&hss_prior);
 }
 
-static void SmoothWeightsFromPriorHMM(int index, float Tau){
+static void SmoothWeightsFromPriorHMM (const int index, const float Tau)
+{
    HMMScanState hss,hss_prior;
+
    NewHMMScan(&hset,&hss);  NewHMMScan(&hset_prior,&hss_prior);
    while(GoNextStream(&hss,FALSE) && GoNextStream(&hss_prior,FALSE)){
       WtAcc *wa_dst; int m,M; 
       M = hss.M; 
-      wa_dst = ((WtAcc*)hss.ste->hook) + index;
-      for(m=1;m<=M;m++) wa_dst->c[m] += Tau * hss_prior.ste->spdf.cpdf[m].weight;
+      wa_dst = ((WtAcc*)hss.sti->hook) + index;
+      for(m=1;m<=M;m++) wa_dst->c[m] += Tau * hss_prior.sti->spdf.cpdf[m].weight;
       wa_dst->occ += Tau;
    }
    EndHMMScan(&hss); EndHMMScan(&hss_prior); 
 }
 
 
-static void SmoothTransFromPriorHMM(int index, float Tau){
+static void SmoothTransFromPriorHMM(int index, float Tau)
+{
    HMMScanState hss,hss_prior;
+
    NewHMMScan(&hset,&hss);    NewHMMScan(&hset_prior,&hss_prior); 
    do{
       TrAcc *ta_dst; int m,M;
@@ -1594,7 +1679,8 @@ static void SmoothTransFromPriorHMM(int index, float Tau){
 
 
 
-static void FixHMMForICrit(){
+static void FixHMMForICrit (void)
+{
    Boolean ISmoothingDone=FALSE;
 
    if(PriorTau>0||PriorK>0||PriorK>0||PriorTauTrans>0) {
@@ -1625,12 +1711,15 @@ static void FixHMMForICrit(){
 
    if(ISmoothTauTrans>0)
       FixTransForICrit(ISmoothTauTrans, THREEACCS);
+      
+   return;
 }
 
 
 
 
-void UpdateWeightsOrTrans(int M, float *acc1, float *acc2, float *mixes, float *oldMixes, float C){ 
+void UpdateWeightsOrTrans(int M, float *acc1, float *acc2, float *mixes, float *oldMixes, float C)
+{ 
    int iter=0;
    int m;
    float objective = 0, last_objective=0, last_last_objective=0;
@@ -1683,10 +1772,11 @@ void UpdateWeightsOrTrans(int M, float *acc1, float *acc2, float *mixes, float *
    return;
 }
 
-void UpdateWeight(int s, StreamElem *ste){
+void UpdateWeight (const int s, StreamInfo *sti)
+{
    int i,n,M=0;
    WtAcc *wa1,*wa2,*wa3;
-   wa1 = (WtAcc *)ste->hook;
+   wa1 = (WtAcc *)sti->hook;
    wa2 = (ML_MODE?NULL:wa1+1);
    wa3 = (THREEACCS?wa1+2:NULL); /*non-NULL in MPE case, where it is the ML accs. */
 
@@ -1695,7 +1785,7 @@ void UpdateWeight(int s, StreamElem *ste){
    switch (hsKind){
    case PLAINHS:
    case SHAREDHS:
-      M=ABS(ste->nMix);
+      M=ABS(sti->nMix);
       break;
    case TIEDHS:
       M = hset.tmRecs[s].nMix;
@@ -1708,10 +1798,10 @@ void UpdateWeight(int s, StreamElem *ste){
     
       switch(hsKind){
       case PLAINHS: case SHAREDHS:
-         for(n=1;n<=M;n++)	NewWghts[n] = OldWghts[n] = ste->spdf.cpdf[n].weight;
+         for(n=1;n<=M;n++)	NewWghts[n] = OldWghts[n] = sti->spdf.cpdf[n].weight;
          break;
       case TIEDHS:
-         for(n=1;n<=M;n++)	NewWghts[n] = OldWghts[n] = ste->spdf.tpdf[n];
+         for(n=1;n<=M;n++)	NewWghts[n] = OldWghts[n] = sti->spdf.tpdf[n];
          break;
       default: HError(1, "Unhandled hsKind.");
       }
@@ -1726,12 +1816,12 @@ void UpdateWeight(int s, StreamElem *ste){
       case PLAINHS:
       case SHAREDHS:
          for(n=1;n<=M;n++){
-            ste->spdf.cpdf[n].weight=(NewWghts[n] > MINMIX ? NewWghts[n] : 0.0);
+            sti->spdf.cpdf[n].weight=(NewWghts[n] > MINMIX ? NewWghts[n] : 0.0);
          }
          break;
       case TIEDHS:
          for(n=1;n<=M;n++){
-            ste->spdf.tpdf[n]=(NewWghts[n] > MINMIX ? NewWghts[n] : 0.0);
+            sti->spdf.tpdf[n]=(NewWghts[n] > MINMIX ? NewWghts[n] : 0.0);
          }
          break;
       default: HError(1, "Unhandled hsKind.");
@@ -1742,16 +1832,16 @@ void UpdateWeight(int s, StreamElem *ste){
          switch (hsKind){
          case PLAINHS:
          case SHAREDHS:
-            FloorMixes(ste->spdf.cpdf+1,M,mixWeightFloor); 
+            FloorMixes(sti->spdf.cpdf+1,M,mixWeightFloor); 
             break;
          case TIEDHS:
-            FloorTMMixes(ste->spdf.tpdf,M,mixWeightFloor);
+            FloorTMMixes(sti->spdf.tpdf,M,mixWeightFloor);
             break;
          default: HError(1, "Unhandled hsKind.");
          }
       }
    }
-   ste->hook = 0;
+   sti->hook = 0;
 }
 
 

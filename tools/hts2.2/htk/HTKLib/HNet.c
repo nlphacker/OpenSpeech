@@ -32,8 +32,53 @@
 /*         File: HNet.c  Network and Lattice Functions         */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hnet_version = "!HVER!HNet:   3.4.1 [CUED 12/03/09]";
-char *hnet_vc_id = "$Id: HNet.c,v 1.1.1.1 2006/10/11 09:54:58 jal58 Exp $";
+char *hnet_vc_id = "$Id: HNet.c,v 1.11 2011/06/16 04:18:29 uratec Exp $";
 
 #include "HShell.h"
 #include "HMem.h"
@@ -91,7 +136,7 @@ Boolean factorLM=FALSE;
 
 char *frcSil=NULL,frcSilBuf[MAXSTRLEN];
 /* 
-   Automagically add these sil models to the end of words.
+   Automatically add these sil models to the end of words.
 */
 Boolean remDupPron=TRUE;
 /*
@@ -135,6 +180,12 @@ void InitNet(void)
       if (GetConfBool(cParm,nParm,"MARKSUBLAT",&b)) sublatmarkers = b;
       if (GetConfInt(cParm,nParm,"TRACE",&i)) trace = i;
    }
+}
+
+/* EXPORT->ResetNet: reset module */
+void ResetNet(void)
+{
+   return;  /* do nothing */
 }
 
 /* ------------------------ Lattice Creation ------------------------- */
@@ -330,7 +381,7 @@ static Lattice *GetSubLat(LabId subLatId,Lattice *subLat)
       subLatHashTab=NULL;
       return(NULL);
    }
-   h=(((unsigned) subLatId)%SUBLATHASHSIZE);
+   h=(((unsigned long) subLatId)%SUBLATHASHSIZE);
    for (cur=subLatHashTab[h];cur!=NULL;cur=cur->chain)
       if (cur->subLatId==subLatId) break;
    if (subLat!=NULL) {
@@ -553,9 +604,9 @@ ReturnStatus WriteOneLattice(Lattice *lat,FILE *file,LatFormat format)
          ln=lat->lnodes+order[i];
          rorder[order[i]]=i;
          ln->n = i;
-         OutputIntField('I',i,format&HLAT_LBIN,"%-4d",file);
+         OutputIntField('I',i,((format&HLAT_LBIN) ? TRUE:FALSE),"%-4d",file);
          if (format&HLAT_TIMES)
-            OutputFloatField('t',ln->time / lat->tscale,format&HLAT_LBIN,"%-5.2f",file);
+            OutputFloatField('t',ln->time / lat->tscale,((format&HLAT_LBIN) ? TRUE:FALSE),"%-5.2f",file);
          if (!(format&HLAT_ALABS)) {
             if (ln->word==lat->voc->subLatWord && ln->sublat!=NULL)
                fprintf(file,"L=%-19s ",
@@ -566,7 +617,7 @@ ReturnStatus WriteOneLattice(Lattice *lat,FILE *file,LatFormat format)
                        ReWriteString(ln->word->wordName->name,
                                      NULL,ESCAPE_CHAR));
                if ((format&HLAT_PRON) && ln->v>=0)
-                  OutputIntField('v',ln->v,format&HLAT_LBIN,"%-2d",file);
+                  OutputIntField('v',ln->v,((format&HLAT_LBIN) ? TRUE:FALSE),"%-2d",file);
                if ((format&HLAT_TAGS) && ln->tag!=NULL)
                   fprintf(file,"s=%-19s ",
                           ReWriteString(ln->tag,NULL,ESCAPE_CHAR));
@@ -589,11 +640,11 @@ ReturnStatus WriteOneLattice(Lattice *lat,FILE *file,LatFormat format)
    }
    for (i=0;i<lat->na;i++) {
       la=NumbLArc(lat,order[i]);
-      OutputIntField('J',i,format&HLAT_LBIN,"%-5d",file);
+      OutputIntField('J',i,((format&HLAT_LBIN) ? TRUE:FALSE),"%-5d",file);
       st=rorder[la->start-lat->lnodes];
       en=rorder[la->end-lat->lnodes];
-      OutputIntField('S',st,format&HLAT_LBIN,"%-4d",file);
-      OutputIntField('E',en,format&HLAT_LBIN,"%-4d",file);
+      OutputIntField('S',st,((format&HLAT_LBIN) ? TRUE:FALSE),"%-4d",file);
+      OutputIntField('E',en,((format&HLAT_LBIN) ? TRUE:FALSE),"%-4d",file);
       if (format&HLAT_ALABS) {
          if (la->end->word!=NULL) 
             fprintf(file,"W=%-19s ",
@@ -602,19 +653,19 @@ ReturnStatus WriteOneLattice(Lattice *lat,FILE *file,LatFormat format)
          else
             fprintf(file,"W=%-19s ","!NULL");
          if ((format&HLAT_PRON) && ln->v>=0)
-            OutputIntField('v',la->end->v,format&HLAT_LBIN,"%-2d",file);
+            OutputIntField('v',la->end->v,((format&HLAT_LBIN) ? TRUE:FALSE),"%-2d",file);
       }
       if (!(lat->format&HLAT_SHARC) && (format&HLAT_ACLIKE))
-         OutputFloatField ('a', ConvLogLikeToBase(lat->logbase, la->aclike), format&HLAT_LBIN, "%-9.2f", file);
+         OutputFloatField ('a', ConvLogLikeToBase(lat->logbase, la->aclike), ((format&HLAT_LBIN) ? TRUE:FALSE), "%-9.2f", file);
       if (format&HLAT_LMLIKE) {
          if (lat->net==NULL)
             OutputFloatField('l', ConvLogLikeToBase(lat->logbase, la->lmlike*lat->lmscale+lat->wdpenalty),
-                             format&HLAT_LBIN,"%-8.2f",file);
+                             ((format&HLAT_LBIN) ? TRUE:FALSE),"%-8.2f",file);
          else
-            OutputFloatField('l',ConvLogLikeToBase(lat->logbase, la->lmlike), format&HLAT_LBIN, "%-7.3f", file);
+            OutputFloatField('l',ConvLogLikeToBase(lat->logbase, la->lmlike), ((format&HLAT_LBIN) ? TRUE:FALSE), "%-7.3f", file);
       }
       if (!(lat->format&HLAT_SHARC) && (format&HLAT_PRLIKE))
-         OutputFloatField('r', ConvLogLikeToBase(lat->logbase, la->prlike), format&HLAT_LBIN, "%-6.2f", file);
+         OutputFloatField('r', ConvLogLikeToBase(lat->logbase, la->prlike), ((format&HLAT_LBIN) ? TRUE:FALSE), "%-6.2f", file);
       if (!(lat->format&HLAT_SHARC) && (format&HLAT_ALIGN) && la->nAlign>0)
          OutputAlign(la,format,file);
       fprintf(file,"\n");
@@ -1613,7 +1664,7 @@ NodeId FindLatEnd(Lattice *lat)
 
 static void PrintNode(NetNode *node,HMMSet *hset)
 {
-   printf("Node[%05d] ",(((unsigned) node)/sizeof(NetNode))%100000);
+   printf("Node[%05ld] ",(((unsigned long) node)/sizeof(NetNode))%100000);
    if (node->type & n_hmm)
       printf("{%s}\n",HMMPhysName(hset,node->info.hmm));
    else if (node->type == n_word && node->info.pron==NULL) {
@@ -1641,8 +1692,8 @@ static void PrintLinks(NetLink *links,int nlinks)
    int i;
 
    for (i=0; i<nlinks; i++) {
-      printf("    %-2d: -> [%05d] == %7.3f\n",i,
-             (((unsigned) links[i].node)/sizeof(NetNode)%100000),
+      printf("    %-2d: -> [%05ld] == %7.3f\n",i,
+             (((unsigned long) links[i].node)/sizeof(NetNode)%100000),
              links[i].like);
       fflush(stdout);
    }
@@ -1696,7 +1747,7 @@ static void AddChain(Network*net, NetNode *hd)
    of type shortArc to minimise lattice storage requirements).
    
    Cross word context dependent networks are created in an
-   automagic manner from the hmmlist and monophone dictionary.
+   automatic manner from the hmmlist and monophone dictionary.
 
    Contexts
    -1 == context free - skip this phone when determining context
@@ -1817,7 +1868,7 @@ int AddHCIContext(HMMSetCxtInfo *hci,LabId labid)
 int GetHCIContext(HMMSetCxtInfo *hci,LabId labid)
 {
    LabId cxt;
-   char buf[80];
+   char buf[MAXSTRLEN];
    int c;
 
    if (hci->nc==0) return(0);
@@ -1893,7 +1944,7 @@ static int DefineContexts(HMMSetCxtInfo *hci)
 {
    MLink ml,il;
    LabId labid;
-   char buf[80],*ptr;
+   char buf[MAXSTRLEN],*ptr;
    int h,c,*temp;
 
    hci->nc=0; hci->sLeft=hci->sRight=FALSE;
@@ -1999,7 +2050,7 @@ static NetNode *FindWordNode(MemHeap *heap,Pron pron,
    NetNode *node;
 
    hash=0;
-   un.ptrs[0]=pron;un.ptrs[1]=pInst;un.ptrs[2]=(Ptr)type;
+   un.ptrs[0]=pron;un.ptrs[1]=pInst;un.ptrs[2]=(Ptr)((long)type);
    for (i=0;i<12;i++)
       hash=((hash<<8)+un.chars[i])%WNHASHSIZE;
 
@@ -2053,7 +2104,7 @@ static HLink FindModel(HMMSetCxtInfo *hci,int lc,LabId name,int rc)
 {
    LabId labid;
    MLink ml;
-   char buf[80];
+   char buf[MAXSTRLEN];
 
    /* Word internal hack */
    /* Cross word will need proper specification of context */
@@ -3658,4 +3709,4 @@ Network *ExpandWordNet(MemHeap *heap,Lattice *lat,Vocab *voc,HMMSet *hset)
    return(net);
 }   
 
-/* ------------------------ End of HNet.c ------------------------- */
+/* ------------------------ End of HNet.c -------------------------- */

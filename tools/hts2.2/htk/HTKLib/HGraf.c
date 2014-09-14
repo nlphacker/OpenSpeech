@@ -16,11 +16,56 @@
 /*    **     This banner notice must not be removed      **    */
 /*                                                             */
 /* ----------------------------------------------------------- */
-/*         File: HGraf.X.c:  HGraf for X-Windows               */
+/*         File: HGraf.c:  HGraf for X-Windows                 */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hgraf_version = "!HVER!HGraf(X):   3.4.1 [CUED 12/03/09]";
-char *hgraf_vc_id = "$Id: HGraf.c,v 1.1.1.1 2006/10/11 09:54:57 jal58 Exp $";
+char *hgraf_vc_id = "$Id: HGraf.c,v 1.10 2011/06/16 04:18:29 uratec Exp $";
 
 /*
    This is the X Windows implementation of HGraf.  It is server
@@ -127,6 +172,12 @@ void InitGraf(void)
    if (nParm>0){
       if (GetConfInt(cParm,nParm,"TRACE",&i)) trace = i;
    }
+}
+
+/* EXPORT->ResetGraf: reset module */
+void ResetGraf(void)
+{
+   return;  /* do nothing */
 }
 
 /*------------------- Font Handling Routines -----------------------*/
@@ -296,7 +347,10 @@ Boolean HMousePos(int *x, int *y)
 /* EXPORT: IsInRect: return TRUE iff (x,y) is in the rectangle (x0,y0,x1,y1) */ 
 Boolean IsInRect(int x, int y, int x0, int y0, int x1, int y1)
 {
-   return (x >= x0 && x<=x1 && y >= y0 && y <= y1);
+   if (x >= x0 && x<=x1 && y >= y0 && y <= y1)
+      return TRUE;
+   else
+      return FALSE;
 }
 
 
@@ -444,7 +498,7 @@ void HFillArc(int x0,int y0,int x1,int y1,int stAngle,int arcAngle)
 void HPrintf(int x, int y, char *format, ...)
 {
    va_list arg;
-   char s[256];
+   char s[MAXSTRLEN];
    
    va_start(arg, format);
    vsprintf(s, format, arg);
@@ -652,7 +706,7 @@ void RedrawHButton(HButton *btn)
    int pad = 2;
    int x, y, w, h, r, s, pos;
    HPoint poly[9], shad[4];
-   char sbuf[256], nullchar = '\0';
+   char sbuf[MAXSTRLEN], nullchar = '\0';
    
    x = btn->x;   y=btn->y;   w=btn->w;   h=btn->h;   r=3; s=1;
 
@@ -760,7 +814,7 @@ ButtonId TrackButtons(HButton *btnlist, HEventRec hev)
 #endif
       do {
          hev = HGetEvent(TRUE, pressed->action);
-         done = (hev.event==HMOUSEUP);
+         done = (hev.event==HMOUSEUP) ? TRUE : FALSE;
       } while (!done);
       released = CheckButtonList(btnlist, hev.x, hev.y);
       SetButtonLit(pressed, FALSE);
@@ -813,7 +867,7 @@ static void InitGlobals(void)
 /* EXPORT-> MakeXGraf: Connect to the X-server and init globals */
 void MakeXGraf(char *wname, int x, int y, int w, int h, int bw)
 {
-   char sbuf[256], *hgraf = "HGraf";
+   char sbuf[MAXSTRLEN], *hgraf = "HGraf";
    Window window, parent;
    XSetWindowAttributes setwinattr;
    unsigned long vmask;
@@ -863,6 +917,4 @@ void TermHGraf()
    DeleteHeap(&btnHeap);
 }
 
-
-/* ------------------------ End of HGraf.X.c ------------------------- */
-
+/* ------------------------ End of HGraf.c ------------------------- */

@@ -32,6 +32,51 @@
 /*         File: HModel.h  HMM Model Definition Data Type      */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 /* !HVER!HModel:   3.4.1 [CUED 12/03/09] */
 
 #ifndef _HMODEL_H_
@@ -42,8 +87,8 @@ extern "C" {
 #endif
 
 /* 
-   The following types define the in-memory representation of a HMM.
-   All HMM's belong to a HMMSet which includes a macro table for
+   The following types define the in-memory representation of an HMM.
+   All HMM's belong to an HMMSet which includes a macro table for
    rapidly mapping macro/hmm names into structures.  
 */
 
@@ -51,6 +96,7 @@ extern "C" {
 #define PTRHASHSIZE  513   /* Size of each HMM Set ptr map hash table */
 #define MINMIX  1.0E-5     /* Min usable mixture weight */
 #define LMINMIX -11.5129254649702     /* log(MINMIX) */
+#define MINSWEIGHT 1.0E-5  /* Min usable stream weight */
 
 #define MINDLOGP 0.000001  /* prob = exp(shortform/DLOGSCALE) */
 #define DLOGSCALE -2371.8  /* = 32767/ln(MINDLOGP) */
@@ -76,7 +122,7 @@ typedef struct _MMFInfo{
 
 /* -------------------- HMM Definition ----------------------- */
 
-enum _DurKind {NULLD, POISSOND, GAMMAD, RELD, GEND};
+enum _DurKind {NULLD, POISSOND, GAMMAD, RELD, GEND, GAUSSD};
 typedef enum _DurKind DurKind;
 
 enum _HSetKind {PLAINHS, SHAREDHS, TIEDHS, DISCRETEHS};
@@ -122,8 +168,15 @@ typedef struct {        /* A Tied Mixture "Codebook" */
 
 typedef struct {        /* 1 of these per stream */
    int nMix;            /* num mixtures in this stream */
+   short stream;        /* position of stream of this stream info */
    MixtureVector spdf;  /* Mixture Vector */
+   int pIdx;            /* Stream index */
+   int nUse;            /* usage counter */
    Ptr hook;            /* general hook */
+} StreamInfo;
+
+typedef struct {        /* 1 of these per stream */
+   StreamInfo *info;    /* information for this stream */
 }StreamElem;
 
 typedef struct {
@@ -147,6 +200,7 @@ typedef struct {
    SVector dur;            /* vector of model duration params, if any */   
    SMatrix transP;         /* transition matrix (logs) */
    int tIdx;               /* Transition matrix index */
+   int hIdx;               /* hmm index */
    int nUse;               /* num logical hmm's sharing this def */
    Ptr hook;               /* general hook */
 } HMMDef;
@@ -170,7 +224,7 @@ typedef struct _ItemRec *ILink;
 
 typedef struct _ItemRec {
    HLink owner;      /* HMM owning this item */
-   Ptr item;         /* -> to a HMM structure */
+   Ptr item;         /* -> to an HMM structure */
    ILink next;
 }ItemRec;
 
@@ -180,15 +234,18 @@ typedef struct {
   IntVec swidth;       /* stream width size */
   int numClasses;      /* number of baseclasses */
   ILink *ilist;        /* 1..numClasses of ilists */
+  IntVec stream;       /* 1..numClasses of stream indexes */
   int nUse;            /* usage counter */
   char *fname;         /* filename of where the baseclass was loaded */
 } BaseClass;
 
 typedef struct _RegNode {
-  float nodeOcc;            /* occupancy for this node */
+  double nodeOcc;           /* occupancy for this node */
   int vsize;                /* vector size associated with the baseclasses of this node */
+  int stream;               /* stream index associated with the baseclasses of this node */
   int nodeIndex;            /* index number of node */
   int numChild;             /* number of children - 0 if terminal */
+  Boolean valid;            /* whether transform can be generated in this node */
   struct _RegNode **child;  /* children of this node NULL if terminal */
   IntVec baseClasses;       /* if a terminal node the set of baseclasses else NULL */
   Ptr info;                 /* hook to hang information from */
@@ -199,9 +256,10 @@ typedef struct RegTree {
   int numTNodes;       /* number of terminal nodes in tree */
   BaseClass *bclass;   /* baseclass associated with this regression tree */
   RegNode *root;       /* pointer to the root node of the tree */
+  ILink nodes;         /* list of nodes */
   Boolean valid;       /* is it valid to generate a transform at the root node */
                        /* handles multiple stream adaptation issues */
-  float thresh;        /* split threshold to determine stopping in tree */
+  float thresh[SMAX];  /* split threshold to determine stopping in tree */
   char *fname;         /* filename of where the regTree was loaded */
 } RegTree;             
 
@@ -262,6 +320,8 @@ typedef struct {
   int nUse;            /* usage counter */
 } InputXForm;
 
+typedef struct _XFDirInfo *XFDirLink;
+
 /* ---------------------- Macros/HMM Hashing ------------------- */
 
 /* 
@@ -272,7 +332,7 @@ typedef struct {
      x xform      w strm wts  o options   c lltcovar  * deleted
      r regtree    b baseclass a adaptXfrm j inputXfm  f linXfm
      g xformSet   y xformBias
-   a HMMDef will have exactly 1 phyHMM macro referencing it but it can 
+   an HMMDef will have exactly 1 phyHMM macro referencing it but it can
    have 0 or more logHMM macros referencing it.
 */
 
@@ -284,6 +344,7 @@ typedef struct _MacroDef{
    short fidx;             /* idx of MMF file (0 = SMF) */
    LabId id;               /* name of macro */
    Ptr structure;          /* -> shared structure or HMM Def */
+   Ptr hook;               /* general hook */
 } MacroDef;
 
 typedef struct _PtrMap {   /* used for finding macros via ptr's */
@@ -307,8 +368,10 @@ typedef struct _HMMSet{
    PtrMap ** pmap;         /* Array[0..PTRHASHSIZE-1]OF PtrMap* */
    Boolean allowTMods;     /* true if HMMs can have Tee Models */
    Boolean optSet;         /* true if global options have been set */
+   Boolean indexSet;       /* have the indexes been set for the model set*/
    short vecSize;          /* dimension of observation vectors */
    short swidth[SMAX];     /* [0]=num streams,[i]=width of stream i */
+   short msdflag[SMAX];    /* flag for multi-space probability density */
    ParmKind pkind;         /* kind of obs vector components */
    DurKind dkind;          /* kind of duration model (model or state) */
    CovKind ckind;          /* cov kind - only global in V1.X */
@@ -316,6 +379,8 @@ typedef struct _HMMSet{
    TMixRec tmRecs[SMAX];   /* array[1..S]of tied mixture record */
    int numStates;          /* Number of states in HMMSet */
    int numSharedStates;    /* Number of shared states in HMMSet */
+   int numStreams;         /* Number of streams in HMMSet */
+   int numSharedStreams;   /* Number of shared streams in HMMSet */
    int numMix;             /* Number of mixture components in HMMSet */
    int numSharedMix;       /* Number of shared mixtures in HMMSet */
    int numTransP;          /* Number of distinct transition matrices */
@@ -323,6 +388,7 @@ typedef struct _HMMSet{
    InputXForm *xf;         /* Input transform of HMMSet */
    AdaptXForm *semiTied;   /* SemiTied transform associated with model set */
    short projSize;         /* dimension of vector to update */
+   XFDirLink xformDirNames;/* linked list of input transform directories */
 
    /* Adaptation information accumulates */
    Boolean attRegAccs;   /* have the set of accumulates been attached */
@@ -339,11 +405,33 @@ typedef struct _HMMSet{
 
 } HMMSet;
 
+/* ---------------------- MSD Information ----------------------- */
+
+/* Multi-Space probability Density information */
+typedef struct _SpaceInfo {
+   int order;                  /* order of space */
+   int count;                  /* number of spaces with same order*/
+   IntVec sindex;              /* space index */
+   struct _SpaceInfo *next;    /* link to next SpaceInfo */
+} SpaceInfo;
+
+typedef struct _MSDInfo {
+   int nSpace;                 /* number of space (= Mixture) */
+   int nKindS;                 /* number of kind of space */
+   IntVec sorder;              /* order of space sorder[1..nSpace] */
+   SpaceInfo *next;            /* link to head SpaceInfo */
+} MSDInfo;
+
 /* --------------------------- Initialisation ---------------------- */
 
 void InitModel(void);
 /*
    Initialise the module
+*/
+
+void ResetModel(void);
+/*
+   Reset the module
 */
 
 /* --------------- Input XForm DIrectory access -------------------- */
@@ -402,6 +490,11 @@ void SetVFloor(HMMSet *hset, Vector *vFloor, float minVar);
    components are set to minVar.
 */
 
+void ResetVFloor(HMMSet *hset, Vector *vFloor);
+/*
+   Reset the variance floors
+*/
+
 void ApplyVFloor(HMMSet *hset);
 /* 
    Apply the variance floors in hset to all covariances in the model set 
@@ -420,13 +513,13 @@ void PrintHSetProfile(FILE *f, HMMSet *hset);
 
 /* ------------------- HMM Set Load/Store ---------------------- */
 
-/* the basic sequence needed to create a HMM set is
+/* the basic sequence needed to create an HMM set is
       CreateHMMSet {AddMMF} (MakeHMMSet | MakeOneHMM) LoadHMMSet
 */
 
 void CreateHMMSet(HMMSet *hset, MemHeap *heap, Boolean allowTMods);
 /* 
-   Create a HMMSet using given heap.  This routine simply
+   Create an HMMSet using given heap.  This routine simply
    initialises the basic HMMSet structure. It must be followed by
    a call to either MakeOneHMM or MakeHMMSet.  
 */
@@ -443,8 +536,8 @@ MILink AddMMF(HMMSet *hset, char *fname);
 
 ReturnStatus MakeHMMSet(HMMSet *hset, char *fname);
 /*
-   Make a HMMSet by reading the file fname.  Each line of fname
-   should contain the logical name of a HMM optionally followed by a
+   Make an HMMSet by reading the file fname.  Each line of fname
+   should contain the logical name of an HMM optionally followed by a
    physical name.  If no physical name is given it is assumed to be
    the same as the logical name.  This routine creates the macro hash
    table, macro definitions for each HMM and HMMDef structures.  It
@@ -490,7 +583,14 @@ ReturnStatus SaveHMMSet(HMMSet *hset, char *hmmDir, char *hmmExt, char *macroExt
 
 ReturnStatus SaveHMMList(HMMSet *hset, char *fname);
 /*
-   Save a HMM list in fname describing given HMM set 
+   Save an HMM list in fname describing given HMM set
+*/
+
+void SetIndexes(HMMSet *hset);
+void SetCovKindUsage (HMMSet *hset);
+ReturnStatus CheckHSet(HMMSet *hset);
+/*
+   Check the consistency of a complete HMM Set
 */
 
 
@@ -564,7 +664,13 @@ LogFloat POutP(HMMSet *hset, Observation *x, StateInfo *si);
    state of given model
 */
 
-LogFloat SOutP(HMMSet *hset, int s, Observation *x, StreamElem *se);
+
+/* ------------------------- DAEM -------------------------- */
+
+void SetDAEMTemp(float temp);
+LogFloat ApplyDAEM(LogFloat lprob);
+
+LogFloat SOutP(HMMSet *hset, int s, Observation *x, StreamInfo *sti);
 /*
    Return Stream log output prob of stream s of observation x
 */
@@ -664,10 +770,47 @@ XFormKind Str2XFormKind(char *str);
 /* EXPORT-> Str2AdaptKind: parse the string into the correct xform kind */
 AdaptKind Str2AdaptKind(char *str);
 
+
+/* ------------- for Multi-Space probability Density ------------------ */
+
+MSDInfo ***CreateMSDInfo(MemHeap *mem, HLink hmm);
+/*
+   Create MSD information of each stream
+*/
+
+int SpaceOrder(Vector vec);
+/*
+   Count order of Vector which is excepted ignVal
+*/
+
+int IncludeSpace(MSDInfo *msdInfo, int order);
+/*
+   Search space in MSD information
+*/
+
+int NumNonZeroSpace(StreamInfo *sti);
+/*
+   NumNonZeroSpace: Return the number of space which order is not zero
+*/
+
+float ReturnIgnoreValue(void);
+/*
+   ReturnIgnoreValue: Return ignoreValue for MSD
+*/
+
+/* -------------- Calculate symmetric KL divergence ------------------- */
+
+/* EXPORT -> CalKLDist: Calculate symmetric KL divergence of single pdf, only support diagonal covariance matrix */
+float CalKLDist(MixPDF * mp1, MixPDF * mp2);
+
+/* EXPORT -> CalStrKLDist: Calculate symmetric KL divergence of stream,
+                           only support single mixture distribution and MSD distribution */
+float CalStrKLDist(StreamInfo *sti1, StreamInfo *sti2);
+
 #ifdef __cplusplus
 }
 #endif
 
 #endif  /* _HMODEL_H_ */
 
-/* ------------------------- End of HModel.h --------------------------- */
+/* ------------------------ End of HModel.h ------------------------ */

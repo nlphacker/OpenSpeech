@@ -27,8 +27,53 @@
 /*         File: HLVmodel.c Model handling for HTK LV Decoder  */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hlvmodel_version = "!HVER!HLVmodel:   3.4.1 [GE 12/03/09]";
-char *hlvmodel_vc_id = "$Id: HLVModel.c,v 1.1.1.1 2006/10/11 09:54:55 jal58 Exp $";
+char *hlvmodel_vc_id = "$Id: HLVModel.c,v 1.8 2011/02/10 08:23:06 uratec Exp $";
 
 
 #include "HShell.h"
@@ -63,7 +108,7 @@ static int nParm = 0;
 
 /* --------------------------- Initialisation ---------------------- */
 
-/* EXPORT->InitLvmodel: register module & set configuration parameters */
+/* EXPORT->InitLVModel: register module & set configuration parameters */
 void InitLVModel(void)
 {
    int i;
@@ -74,6 +119,12 @@ void InitLVModel(void)
       if (GetConfInt(cParm,nParm,"TRACE",&i)) trace = i;
    }
 
+}
+
+/* EXPORT->ResetLVmodel: reset module */
+void ResetLVModel(void)
+{
+   return;
 }
 
 /* --------------------------- the real code  ---------------------- */
@@ -103,20 +154,20 @@ StateInfo_lv *ConvertHSet(MemHeap *heap, HMMSet *hset, Boolean useHModel)
    NewHMMScan (hset, &hss);
    while (GoNextState (&hss, FALSE)) {
       hss.si->sIdx=-1;
-      if (hss.si->pdf[1].nMix < minNMix)
-         minNMix = hss.si->pdf[1].nMix;
+      if (hss.si->pdf[1].info->nMix < minNMix)
+         minNMix = hss.si->pdf[1].info->nMix;
    } 
    EndHMMScan (&hss);
 
    NewHMMScan (hset, &hss);
    while (GoNextState (&hss, FALSE)) {
       if (hss.si->sIdx == -1) {
-         if (hss.si->pdf[1].nMix == minNMix) {
+         if (hss.si->pdf[1].info->nMix == minNMix) {
             hss.si->sIdx = sIdx;
             ++sIdx;
          } else {       /* need multiple blocks */
             hss.si->sIdx = sIdx;
-            sIdx += RoundAlign (hss.si->pdf[1].nMix,minNMix) / minNMix;
+            sIdx += RoundAlign (hss.si->pdf[1].info->nMix,minNMix) / minNMix;
          }
       }
       else {
@@ -147,13 +198,13 @@ StateInfo_lv *ConvertHSet(MemHeap *heap, HMMSet *hset, Boolean useHModel)
          se = &hss.si->pdf[1];
 
          base = HLVMODEL_BLOCK_BASE(si, hss.si->sIdx);
-         HLVMODEL_BLOCK_NMIX(si,base) = se->nMix;
+         HLVMODEL_BLOCK_NMIX(si,base) = se->info->nMix;
 
          mean = base + HLVMODEL_BLOCK_MEAN_OFFSET(si);
          invVar = base + HLVMODEL_BLOCK_INVVAR_OFFSET(si);
 
-         for (m = 1; m <= se->nMix; ++m) {
-            me = &se->spdf.cpdf[m];
+         for (m = 1; m <= se->info->nMix; ++m) {
+            me = &se->info->spdf.cpdf[m];
             mp = me->mpdf;
             assert (mp->ckind == INVDIAGC);
 

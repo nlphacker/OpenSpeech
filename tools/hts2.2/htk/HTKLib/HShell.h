@@ -32,6 +32,51 @@
 /*         File: HShell.h:   Interface to the Shell            */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 /* !HVER!HShell:   3.4.1 [CUED 12/03/09] */
 
 #ifndef _HSHELL_H_
@@ -72,9 +117,22 @@ extern "C" {
 #endif
 
 
-#define MAXSTRLEN 256    /* max length of a string */
-#define MAXFNAMELEN 1034 /* max length of a file name */
-#define SMAX      5      /* max num data streams + 1 */
+#ifndef MAXSTRLEN
+#define MAXSTRLEN 1024   /* max length of a string (added for long context) */
+#endif  /* MAXSTRLEN */
+
+#ifndef MAXFNAMELEN
+#define MAXFNAMELEN 1024 /* max length of a file name */
+#endif  /* MAXFNAMELEN */
+
+#ifndef PAT_LEN
+#define PAT_LEN 2048     /* max length of pattern */
+#endif  /* PAT_LEN */
+
+#ifndef SMAX
+#define SMAX 30          /* max num data streams + 1 */
+#endif  /* SMAX */
+
 #define MAXGLOBS  256    /* max num global config parms */
 
 #define SING_QUOTE '\''  /* character used as quote */
@@ -209,6 +267,11 @@ ReturnStatus InitShell(int argc, char *argv[], char *ver, char *sccs);
       -V                   print version and sccs info and abort
    ver and sccs are the HTK version info ver and sccs info for the
    current tool.
+*/
+
+void ResetShell(void);
+/* 
+   reset module
 */
 
 void Register(char *ver, char *sccs);
@@ -440,16 +503,18 @@ void SkipComment(Source *src);
 Boolean ReadShort(Source *src, short *s, int n, Boolean binary);
 Boolean ReadInt  (Source *src, int *i,   int n, Boolean binary);
 Boolean ReadFloat(Source *src, float *x, int n, Boolean binary);
+Boolean ReadDouble(Source *src, double *x, int n, Boolean binary);
 /*
-   Read n short/int/float(s) from the given source, return 
+   Read n short/int/float/double(s) from the given source, return 
    TRUE if no error.  If binary then binary read is performed - 
    byte swapping is controlled by HShell config variables.
 */
 Boolean RawReadShort(Source *src, short *s, int n, Boolean bin, Boolean swap);
 Boolean RawReadInt(Source *src, int *i, int n, Boolean bin, Boolean swap);
 Boolean RawReadFloat(Source *src, float *x, int n, Boolean bin, Boolean swap);
+Boolean RawReadDouble(Source *src, double *x, int n, Boolean bin, Boolean swap);
 /*
-   Read n short/int/float(s) from the given source, return 
+   Read n short/int/float/double(s) from the given source, return 
    TRUE if no error.  
    If binary then binary read is performed.
    If swap then values are byte swapped after reading.
@@ -457,6 +522,7 @@ Boolean RawReadFloat(Source *src, float *x, int n, Boolean bin, Boolean swap);
 
 void SwapShort(short *p);
 void SwapInt32(int32 *p);
+void SwapDouble(double *p);
 /* 
    Byte swap various types
 */
@@ -471,8 +537,9 @@ Boolean KeyPressed(int tWait);
 void WriteShort(FILE *f, short *s, int n, Boolean binary);
 void WriteInt  (FILE *f, int *i,   int n, Boolean binary);
 void WriteFloat(FILE *f, float *x, int n, Boolean binary);
+void WriteDouble(FILE *f, double *x, int n, Boolean binary);
 /*
-   Write n short/int/float(s) to the given file.  
+   Write n short/int/float/double(s) to the given file.  
    If binary then binary Write is performed.
 */
 
@@ -554,4 +621,4 @@ char *RetrieveCommandLine(void);
 
 #endif  /* _HSHELL_H_ */
 
-/* ----------------------- End of HShell.h --------------------------- */
+/* ------------------------ End of HShell.h ------------------------ */

@@ -32,8 +32,53 @@
 /*       File: HParm.c:  Speech Parameter File Input/Output    */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hparm_version = "!HVER!HParm:   3.4.1 [CUED 12/03/09]";
-char *hparm_vc_id = "$Id: HParm.c,v 1.1.1.1 2006/10/11 09:54:58 jal58 Exp $";
+char *hparm_vc_id = "$Id: HParm.c,v 1.15 2011/06/16 04:18:29 uratec Exp $";
 
 #include "HShell.h"
 #include "HMem.h"
@@ -940,6 +985,16 @@ ReturnStatus InitParm(void)
    return(SUCCESS);
 }
  
+/* EXPORT->ResetParm: reset parmHeap */
+void ResetParm (void)
+{
+   Dispose(&gcheap,defChan->confName);
+   Dispose(&gcheap,defChan);
+   ResetHeap(&parmHeap);
+   
+   return;
+}
+ 
 /* EXPORT->SetNewConfig: Sets config parms for libmod */
 ReturnStatus SetChannel(char *confName)
 { 
@@ -1109,7 +1164,7 @@ char *ParmKind2Str(ParmKind kind, char *buf)
 ParmKind Str2ParmKind(char *str)
 {
    ParmKind i = -1;
-   char *s,buf[255];
+   char *s,buf[MAXSTRLEN];
    Boolean hasE,hasD,hasN,hasA,hasT,hasF,hasC,hasK,hasZ,has0,hasV,found;
    int len;
    
@@ -1166,16 +1221,16 @@ ParmKind Str2ParmKind(char *str)
 ParmKind BaseParmKind(ParmKind kind) { return kind & BASEMASK; }
 
 /* EXPORT->HasXXXX: returns true if XXXX included in ParmKind */
-Boolean HasEnergy(ParmKind kind){return (kind & HASENERGY) != 0;}
-Boolean HasDelta(ParmKind kind) {return (kind & HASDELTA) != 0;}
-Boolean HasAccs(ParmKind kind)  {return (kind & HASACCS) != 0;}
-Boolean HasThird(ParmKind kind) {return (kind & HASTHIRD) != 0;}
-Boolean HasNulle(ParmKind kind) {return (kind & HASNULLE) != 0;}
-Boolean HasCompx(ParmKind kind) {return (kind & HASCOMPX) != 0;}
-Boolean HasCrcc(ParmKind kind)  {return (kind & HASCRCC) != 0;}
-Boolean HasZerom(ParmKind kind) {return (kind & HASZEROM) != 0;}
-Boolean HasZeroc(ParmKind kind) {return (kind & HASZEROC) != 0;}
-Boolean HasVQ(ParmKind kind)    {return (kind & HASVQ) != 0;}
+Boolean HasEnergy(ParmKind kind){return (((kind & HASENERGY) != 0) ? TRUE:FALSE);}
+Boolean HasDelta(ParmKind kind) {return (((kind & HASDELTA)  != 0) ? TRUE:FALSE);}
+Boolean HasAccs(ParmKind kind)  {return (((kind & HASACCS)   != 0) ? TRUE:FALSE);}
+Boolean HasThird(ParmKind kind) {return (((kind & HASTHIRD)  != 0) ? TRUE:FALSE);}
+Boolean HasNulle(ParmKind kind) {return (((kind & HASNULLE)  != 0) ? TRUE:FALSE);}
+Boolean HasCompx(ParmKind kind) {return (((kind & HASCOMPX)  != 0) ? TRUE:FALSE);}
+Boolean HasCrcc(ParmKind kind)  {return (((kind & HASCRCC)   != 0) ? TRUE:FALSE);}
+Boolean HasZerom(ParmKind kind) {return (((kind & HASZEROM)  != 0) ? TRUE:FALSE);}
+Boolean HasZeroc(ParmKind kind) {return (((kind & HASZEROC)  != 0) ? TRUE:FALSE);}
+Boolean HasVQ(ParmKind kind)    {return (((kind & HASVQ)     != 0) ? TRUE:FALSE);}
 
 /* EXPORT->SyncBuffers: if matrix transformations are used this syncs the two buffers */
 Boolean SyncBuffers(ParmBuf pbuf,ParmBuf pbuf2)
@@ -1517,7 +1572,7 @@ static Boolean EqualKind(ParmKind a, ParmKind b)
 {
    /* Energy suppression only occurs at observation level */
    a = a&(~HASNULLE); b = b&(~HASNULLE);
-   return a==b;
+   return ((a==b) ? TRUE:FALSE);
 }
 
 /* --------------- Parameter Conversion Routines ----------------- */
@@ -1546,7 +1601,7 @@ static Boolean EqualKind(ParmKind a, ParmKind b)
    For buffers, they may be positive. */
       
 /* Note that unlike before this function really will process nRows of data */
-/* And will not automagically do extra (which was a necessary and probably */
+/* And will not automatically do extra (which was a necessary and probably */
 /* unintended side effect of the way the function worked previously) */
 
 static void AddDiffs(float *data, int nRows, int nCols, int si, int ti, int d, 
@@ -1618,7 +1673,7 @@ static void DeleteColumn(float *data, int nUsed, int si, int d)
 static void AddQualifiers(ParmBuf pbuf,float *data, int nRows, IOConfig cf, 
                           int hdValid, int tlValid)
 {
-   char buf[100],buff1[256],buff2[256];
+   char buf[MAXSTRLEN],buff1[MAXSTRLEN],buff2[MAXSTRLEN];
    int si,ti,d=0,ds,de, i, j, step, size;
    short span[12];
    float *fp, mean, scale;
@@ -1852,15 +1907,15 @@ static void AddQualifiers(ParmBuf pbuf,float *data, int nRows, IOConfig cf,
     Conversion is applied to the single row pointed to by data. */ 
 static void DelQualifiers(float *data, IOConfig cf)
 {
-   char buf[100];
+   char buf[MAXSTRLEN];
    int si,d,used=cf->nUsed;
    short span[12];
    Boolean baseX,statX,eX,zX;
    
-   statX = (cf->curPK&BASEMASK) != (cf->tgtPK&BASEMASK);
-   eX = (cf->curPK&HASENERGY) && !(cf->tgtPK&HASENERGY);
-   zX = (cf->curPK&HASZEROC) && !(cf->tgtPK&HASZEROC);
-   baseX = statX || eX || zX;
+   statX = ((cf->curPK&BASEMASK)  !=  (cf->tgtPK&BASEMASK))  ? TRUE:FALSE;
+   eX    = ((cf->curPK&HASENERGY) && !(cf->tgtPK&HASENERGY)) ? TRUE:FALSE;
+   zX    = ((cf->curPK&HASZEROC)  && !(cf->tgtPK&HASZEROC))  ? TRUE:FALSE;
+   baseX = (statX || eX || zX) ? TRUE:FALSE;
    if (trace&T_TOP)
       printf("HParm:  deleting Qualifiers in %s ...",ParmKind2Str(cf->curPK,buf));
    FindSpans(span,cf->curPK,cf->nUsed);
@@ -2143,7 +2198,7 @@ void ZeroMeanFrame(Vector v)
 /* SetUpForCoding: set style, sizes and  working storage */
 static void SetUpForCoding(MemHeap *x, IOConfig cf, int frSize)
 {
-   char buf[50];
+   char buf[MAXSTRLEN];
    ParmKind btgt;
   
    cf->s = CreateVector(x,frSize);
@@ -2166,7 +2221,7 @@ static void SetUpForCoding(MemHeap *x, IOConfig cf, int frSize)
       cf->fbank = CreateVector(x,cf->numChans);
       cf->fbInfo = InitFBank (x, frSize, (long) cf->srcSampRate, cf->numChans, 
                               cf->loFBankFreq, cf->hiFBankFreq, cf->usePower, 
-                              (btgt == PLP) ? FALSE : btgt != MELSPEC,
+                              (btgt == PLP) ? FALSE : ((btgt != MELSPEC) ? TRUE:FALSE),
                               cf->doubleFFT,
                               cf->warpFreq, cf->warpLowerCutOff, cf->warpUpperCutOff);
       
@@ -2853,7 +2908,7 @@ static void ExtractObservation(float *fp, Observation *o)
       for (i=0; i<j; i++) printf("%8.4f ",fp[i]); printf("\n");
    }
    if (o->eSep){
-      wantE = !(o->pk&HASNULLE);
+      wantE = (!(o->pk&HASNULLE)) ? TRUE:FALSE;
       if (numS == 2){
          w1 = o->swidth[1]; w2 = NumEnergy(o->pk); 
          w = w1+w2; n = w/w2;
@@ -2879,7 +2934,7 @@ static void ExtractObservation(float *fp, Observation *o)
          HError(6391,"ExtractObservation: %d of %d E vals copied",
                 k-1,o->swidth[numS]);
    } else {
-      skipE = (o->pk&(HASENERGY|HASZEROC)) && (o->pk&HASNULLE);
+      skipE = ((o->pk&(HASENERGY|HASZEROC)) && (o->pk&HASNULLE)) ? TRUE:FALSE;
       if (skipE) {
          nStatic = o->swidth[1];
          if (numS==1) nStatic = (nStatic+1)/NumEnergy(o->pk) - 1;
@@ -2922,6 +2977,16 @@ Observation MakeObservation(MemHeap *x, short *swidth,
       for (i=1; i<=numS; i++)
          ob.fv[i] = CreateVector(x,swidth[i]);
    return ob;
+}
+
+/* EXPORT->ResetObservation: Reset obs */
+void ResetObservation(MemHeap *x, Observation *ob, short *swidth, ParmKind pkind)
+{
+   int s; 
+   
+   if ((pkind&BASEMASK) != DISCRETE)
+      for (s=swidth[0]; s>0; s--)
+         FreeVector(x, ob->fv[s]);
 }
 
 #define OBMARGIN 6         /* margin width for displaying observations */
@@ -2997,9 +3062,9 @@ void ExplainObservation(Observation *o, int itemsPerLine)
             strcpy(str,""); strcpy(buf,""); isE = FALSE;
             if ((o->pk&(HASENERGY|HASZEROC)) && !o->eSep ) {
                if(s==1)
-                  isE = (!(o->pk&HASNULLE) && (j==nStatic)) || (j==nDel) || (j==nTotal);
+                  isE = ((!(o->pk&HASNULLE) && (j==nStatic)) || (j==nDel) || (j==nTotal)) ? TRUE:FALSE;
                else
-                  isE = j==o->swidth[s];
+                  isE = (j==o->swidth[s]) ? TRUE:FALSE;
             }
             if (isE) strcpy(str,(o->pk&HASENERGY)?"E":"C0");
             switch(s){
@@ -3108,7 +3173,7 @@ void  SetStreamWidths(ParmKind pk, int size, short *swidth, Boolean *eSep)
       for (s=1; s<=swidth[0]; s++) swidth[s]=1;
       return;
    }
-   isSet = swidth[1] != 0;
+   isSet = (swidth[1] != 0) ? TRUE:FALSE;
    ZeroStreamWidths(swidth[0],sw);
    FindSpans(span,pk,size);
    neObs = neTab = NumEnergy(pk);
@@ -3538,7 +3603,7 @@ static int FramesInParm(ParmBuf pbuf)
    if (pbuf->lastRow<0) {
 #ifdef STREAM_PARM_FILES
       long l;
-      /* Automagically determine the end of file */
+      /* Automatically determine the end of file */
       ioctl(fileno(pbuf->cf->src.f),FIONREAD,&l);
       if (pbuf->cf->srcPK&HASCRCC) l-=2;
       if (pbuf->fShort)
@@ -3929,7 +3994,7 @@ static void FillBufFromChannel(ParmBuf pbuf,int minRows)
    IOConfig cf = pbuf->cf;
    PBlock *pb,*lb;
    Boolean dis,cleared;
-   char b1[100];
+   char b1[MAXSTRLEN];
    int availRows,newRows,space,i,head,tail,nShift;
    short *sp1=NULL, *sp2;
    float *fp1=NULL, *fp2;
@@ -3973,8 +4038,8 @@ static void FillBufFromChannel(ParmBuf pbuf,int minRows)
          }
          else {
             nShift=pbuf->main.nRows-pbuf->minRows; /* Max shift */
-            dis = ((pbuf->outRow-nShift>pbuf->main.stRow) && 
-                   pbuf->main.next==NULL && pbuf->noTable);
+            dis = (((pbuf->outRow-nShift>pbuf->main.stRow) && 
+                     pbuf->main.next==NULL && pbuf->noTable)) ? TRUE:FALSE;
          }
          if (trace&T_BUF)
             printf("%s %d from %d/%d @%d\n",(dis?"Discarding":"Moving"),
@@ -4148,7 +4213,7 @@ static ReturnStatus OpenAsChannel(ParmBuf pbuf, int maxObs,
 {
    ChannelType chType;
    BufferInfo info;
-   int initRows;
+   int initRows=0;
    long dBytes;
    char b1[50];
    IOConfig cf = pbuf->cf;
@@ -4660,7 +4725,7 @@ void GetBufferInfo(ParmBuf pbuf, BufferInfo *info)
    info->xform = cf->xform;
 
    /* Fake spDetParmsSet to make self calibrating appear always set */
-   info->spDetParmsSet=(chan->spDetParmsSet||(cf->selfCalSilDet!=0));
+   info->spDetParmsSet=((chan->spDetParmsSet||(cf->selfCalSilDet!=0))) ? TRUE:FALSE;
    info->spDetSil=chan->spDetSil;
    info->chPeak=chan->chPeak;
    info->spDetSp=chan->spDetSp;
@@ -4743,7 +4808,7 @@ ParmBuf EmptyBuffer(MemHeap *x, int size, Observation o, BufferInfo info)
    dBytes = cf->nCols * size * (pbuf->dShort?sizeof(short):sizeof(float));
    pbuf->main.data = New(pbuf->mem,dBytes); 
    pbuf->main.stRow=0; pbuf->main.nRows=0; pbuf->main.maxRows=size;
-   pbuf->chType = 0;
+   pbuf->chType = (ChannelType) 0;
    return pbuf;
 }
 
@@ -5021,7 +5086,7 @@ ReturnStatus SaveBuffer(ParmBuf pbuf, char *fname, FileFormat ff)
       break;
    case ESIG:
       WriteESIGPHeader(f, cf, sampPeriod, sampSize, kind); 
-      bSwap = vaxOrder && !natWriteOrder;
+      bSwap = (vaxOrder && !natWriteOrder) ? TRUE:FALSE;
       break;
    default:
       HRError(6270,"SaveBuffer: Cannot save data as %s.",
@@ -5044,7 +5109,7 @@ ReturnStatus SaveBuffer(ParmBuf pbuf, char *fname, FileFormat ff)
    cf->crcc=0;
 
    if (cf->saveCompressed)
-      CalcCompress(pbuf,pbInit,cf->nCols,((kind&BASEMASK) == LPREFC));
+      CalcCompress(pbuf,pbInit,cf->nCols,(((kind&BASEMASK) == LPREFC) ? TRUE:FALSE));
         
    if (cf->saveCompressed && (kind&BASEMASK) != LPREFC) {
       WriteFloat(f,cf->A+1,cf->nCols,hparmBin);
@@ -5147,4 +5212,4 @@ void AddToBuffer(ParmBuf pbuf, Observation o)
    pbuf->qst++; pbuf->qen++; 
 }
 
-/* --------------------------  HParm.c ------------------------- */
+/* ------------------------ End of HParm.c ------------------------- */

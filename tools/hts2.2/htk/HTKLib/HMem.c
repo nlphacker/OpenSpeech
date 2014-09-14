@@ -19,8 +19,53 @@
 /*         File: HMem.c:   Memory Management Module            */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hmem_version = "!HVER!HMem:   3.4.1 [CUED 12/03/09]";
-char *hmem_vc_id = "$Id: HMem.c,v 1.1.1.1 2006/10/11 09:54:58 jal58 Exp $";
+char *hmem_vc_id = "$Id: HMem.c,v 1.11 2011/06/16 04:18:29 uratec Exp $";
 
 #include "HShell.h"
 #include "HMem.h"
@@ -106,7 +151,7 @@ static BlockP AllocBlock(size_t size, size_t num, HeapType type)
    int i;
    
    if (trace&T_TOP)
-      printf("HMem: AllocBlock of %u bytes\n",num*size);
+      printf("HMem: AllocBlock of %zd bytes\n",num*size);
    if ((p = (BlockP) malloc(sizeof(Block))) == NULL)
       HError(5105,"AllocBlock: Cannot allocate Block");
    if ((p->data = (void *)malloc(size*num)) == NULL)
@@ -201,6 +246,14 @@ void InitMem(void)
    }
 }
 
+/* EXPORT->ResetMem: reset module */
+void ResetMem(void)
+{
+   ResetHeap(&gstack);
+   
+   return;
+}
+
 /* EXPORT->CreateHeap: create a memory heap with given characteristics */
 void CreateHeap(MemHeap *x, char *name, HeapType type, size_t elemSize, 
                 float growf, size_t numElem, size_t maxElem)
@@ -231,7 +284,7 @@ void CreateHeap(MemHeap *x, char *name, HeapType type, size_t elemSize,
       case MSTAK: c='S'; break;
       case CHEAP: c='C'; break;
       }
-      printf("HMem: Create Heap %s[%c] %u %.1f %u %u\n",name,c,
+      printf("HMem: Create Heap %s[%c] %zd %.1f %zd %zd\n",name,c,
              elemSize, growf, numElem, maxElem);
    }
 }
@@ -322,7 +375,7 @@ void *New(MemHeap *x,size_t size)
          HError(5173,"New: MHEAP req for %u size elem from heap %s size %u",
                 size,x->name,x->elemSize);
 
-      noSpace = x->totUsed == x->totAlloc;
+      noSpace = (x->totUsed == x->totAlloc) ? TRUE : FALSE;
       if (noSpace || (q=GetElem(x->heap,x->elemSize,x->type)) == NULL) {
          if (!noSpace) BlockReorder(&(x->heap),1);
          if (noSpace || (q=GetElem(x->heap,x->elemSize,x->type)) == NULL) {
@@ -339,7 +392,7 @@ void *New(MemHeap *x,size_t size)
       }
       x->totUsed++;
       if (trace&T_MHP)
-         printf("HMem: %s[M] %u bytes at %p allocated\n",x->name,size,q);
+         printf("HMem: %s[M] %zd bytes at %p allocated\n",x->name,size,q);
       return q;
    case CHEAP:
       chdr = MRound(sizeof(size_t));
@@ -350,7 +403,7 @@ void *New(MemHeap *x,size_t size)
       x->totAlloc += size+chdr;
       ip = (size_t *)q; *ip = size;
       if (trace&T_CHP)
-         printf("HMem: %s[C] %u+%u bytes at %p allocated\n",x->name,chdr,size,q);
+         printf("HMem: %s[C] %zd+%zd bytes at %p allocated\n",x->name,chdr,size,q);
       return (Ptr)((ByteP)q+chdr);
    case MSTAK:
       /* set required size - must alloc on double boundaries */
@@ -374,9 +427,9 @@ void *New(MemHeap *x,size_t size)
       }
       x->totUsed += size;
       if (trace&T_STK)
-         printf("HMem: %s[S] %u bytes at %p allocated\n",x->name,size,q);
+         printf("HMem: %s[S] %zd bytes at %p allocated\n",x->name,size,q);
       if (x->protectStk) {
-         pp = (Ptr *)((long)q + size - sizeof(Ptr)); /* #### fix this! */
+         pp = (Ptr *)((size_t)q + size - sizeof(Ptr)); /* #### fix this! */
          *pp = q;
       }
       return q;
@@ -416,8 +469,7 @@ void Dispose(MemHeap *x, void *p)
       size = x->elemSize;
       while (cur != NULL && !found) {
          num = cur->numElem;
-         found = cur->data <= p && 
-            (((void*)((ByteP)cur->data+(num-1)*size)) >= p);
+         found = (cur->data <= p && (((void*)((ByteP)cur->data+(num-1)*size)) >= p)) ? TRUE : FALSE;
          if (!found) {
             prev=cur; cur=cur->next;
          }   
@@ -437,7 +489,7 @@ void Dispose(MemHeap *x, void *p)
          free(cur->data); free(cur->used); free(cur);
       }
       if (trace&T_MHP)
-         printf("HMem: %s[M] %u bytes at %p de-allocated\n",x->name,size,p);
+         printf("HMem: %s[M] %zd bytes at %p de-allocated\n",x->name,size,p);
       return;
    case MSTAK:
       /* search for item to dispose */
@@ -457,8 +509,7 @@ void Dispose(MemHeap *x, void *p)
       while (cur != NULL && !found){
          /* check current block */
          num = cur->numElem;
-         found = cur->data <= p && 
-            (((void*)((ByteP)cur->data+num)) > p);
+         found = (cur->data <= p && (((void*)((ByteP)cur->data+num)) > p)) ? TRUE : FALSE;
          if (!found) {     /* item not in cur block so delete it */
             x->heap = cur->next;
             x->totAlloc -= cur->numElem;
@@ -480,7 +531,7 @@ void Dispose(MemHeap *x, void *p)
       cur->firstFree -= size;
       cur->numFree += size; x->totUsed -= size;
       if (trace&T_STK)
-         printf("HMem: %s[S] %u bytes at %p de-allocated\n",x->name,size,p);
+         printf("HMem: %s[S] %zd bytes at %p de-allocated\n",x->name,size,p);
       return;
    case CHEAP:
       chdr = MRound(sizeof(size_t));
@@ -488,7 +539,7 @@ void Dispose(MemHeap *x, void *p)
       ip = (size_t *)bp;
       x->totAlloc -= (*ip + chdr); x->totUsed -= *ip;
       if (trace&T_CHP)
-         printf("HMem: %s[C] %u+%u bytes at %p de-allocated\n",
+         printf("HMem: %s[C] %zd+%zd bytes at %p de-allocated\n",
                 x->name,chdr,*ip,bp);
       free(bp);
       return;
@@ -508,7 +559,7 @@ void PrintHeapStats(MemHeap *x)
    case CHEAP: tc = 'C'; break;
    }
    for (p=x->heap; p != NULL; p = p->next) ++nBlocks;
-   printf("nblk=%3d, siz=%6u*%-3u, used=%9u, alloc=%9u : %s[%c]\n",
+   printf("nblk=%3d, siz=%6zd*%-3zd, used=%9zd, alloc=%9zd : %s[%c]\n",
           nBlocks, x->curElem, x->elemSize, x->totUsed, 
           x->totAlloc*x->elemSize,x->name,tc) ;
    fflush(stdout);
@@ -674,6 +725,10 @@ size_t MatrixElemSize(int nrows,int ncols)
 {
    return VectorElemSize(ncols) * nrows + (nrows+1)*sizeof(Vector);
 }
+size_t IMatrixElemSize(int nrows,int ncols)
+{
+   return IntVecElemSize(ncols) * nrows + (nrows+1)*sizeof(IntVec);
+}
 size_t DMatrixElemSize(int nrows,int ncols)
 {
    return MRound(DVectorElemSize(ncols) * nrows + (nrows+1)*sizeof(DVector));
@@ -686,6 +741,11 @@ size_t TriMatElemSize(int size)
 {
    return size*(VectorElemSize(0)*2 + (size+1)*sizeof(float))/2
       + (size+1)*sizeof(Vector);
+}
+size_t DTriMatElemSize(int size)
+{
+   return size*(DVectorElemSize(0)*2 + (size+1)*sizeof(double))/2
+      + (size+1)*sizeof(DVector);
 }
 size_t STriMatElemSize(int size)
 {
@@ -709,6 +769,26 @@ Matrix CreateMatrix(MemHeap *x, int nrows, int ncols)
    for (j=1;j<=nrows; j++, p += vsize) {
       i = (int *) p; *i = ncols;
       m[j] = (Vector) p;
+   }
+   return m;
+}
+
+/* EXPORT->CreateIMatrix:  Allocate space for integer matrix m[1..nrows][1..ncols] */
+IMatrix CreateIMatrix(MemHeap *x, int nrows, int ncols)
+{
+   size_t vsize;
+   int *i,j;
+   IntVec *m;   
+   char *p;
+   
+   p =(char *)  New(x,IMatrixElemSize(nrows,ncols)); 
+   i = (int *)p; *i = nrows;
+   vsize = IntVecElemSize(ncols);
+   m = (IntVec *)p;
+   p += (nrows+1)*sizeof(IntVec);
+   for (j=1;j<=nrows; j++, p += vsize) {
+      i = (int *) p; *i = ncols;
+      m[j] = (IntVec) p;
    }
    return m;
 }
@@ -747,6 +827,24 @@ DMatrix CreateDMatrix(MemHeap *x, int nrows,int ncols)
    for (j=1; j<=nrows; j++, p += vsize) {
       i = (int *) p; *i = ncols;
       m[j] = (DVector) p;
+   }
+   return m;
+}
+
+/* EXPORT->CreateDTriMat:  Allocate space for double matrix m[1..size][1..i] */
+DTriMat CreateDTriMat(MemHeap *x,int size)
+{
+   int *i,j;
+   DVector *m;   
+   char *p;
+      
+   p = (char *) New(x,DTriMatElemSize(size)); 
+   i = (int *)p; *i = size;
+   m = (DVector *)p;
+   p += (size+1)*sizeof(DVector);
+   for (j=1;j<=size; j++) {
+      i = (int *) p; *i = j;
+      m[j] = (DVector) p; p += DVectorElemSize(j);
    }
    return m;
 }
@@ -804,6 +902,17 @@ Boolean IsTriMat(Matrix m)
    return(TRUE);
 }
 
+/* EXPORT->IsDTriMat: True if double matrix is lower triangular */
+Boolean IsDTriMat(DMatrix m)
+{
+   int i,n;
+
+   n=NumDRows(m);
+   for(i=1;i<=n;i++)
+      if (DVectorSize(m[i])!=i) return(FALSE);
+   return(TRUE);
+}
+
 /* EXPORT->NumRows: number of rows in matrix m */
 int NumRows(Matrix m)
 {
@@ -815,6 +924,24 @@ int NumRows(Matrix m)
 
 /* EXPORT->NumCols: number of columns in matrix m */
 int NumCols(Matrix m)
+{
+   int *ncols;
+   
+   ncols = (int *) m[1];
+   return *ncols;
+}
+
+/* EXPORT->NumIRows: number of rows in matrix m */
+int NumIRows(IMatrix m)
+{
+   int *nrows;
+   
+   nrows = (int *) m;
+   return *nrows;
+}
+
+/* EXPORT->NumICols: number of columns in matrix m */
+int NumICols(IMatrix m)
 {
    int *ncols;
    
@@ -849,8 +976,23 @@ int TriMatSize(TriMat m)
    return *nrows;
 }
 
+/* EXPORT->DTriMatSize: number of rows/cols in double triangular matrix m */
+int DTriMatSize(DTriMat m)
+{
+   int *nrows;
+   
+   nrows = (int *) m;
+   return *nrows;
+}
+
 /* EXPORT->FreeMatrix: Free space allocated for matrix m */
 void FreeMatrix(MemHeap *x, Matrix m)
+{
+   Dispose(x,m);
+}
+
+/* EXPORT->FreeIMatrix: Free space allocated for matrix m */
+void FreeIMatrix(MemHeap *x, IMatrix m)
 {
    Dispose(x,m);
 }
@@ -871,6 +1013,12 @@ void FreeSMatrix(MemHeap *x, Matrix m)
 
 /* EXPORT->FreeTriMat: Free space allocated for tri matrix m */
 void FreeTriMat(MemHeap *x,TriMat m)
+{
+   Dispose(x,m);
+}
+
+/* EXPORT->FreeDTriMat: Free space allocated for double tri matrix m */
+void FreeDTriMat(MemHeap *x,DTriMat m)
 {
    Dispose(x,m);
 }
@@ -938,7 +1086,10 @@ Boolean IsSeenV(Ptr m)
    int i;
    
    p = (Ptr *) m; --p; i = *((int *)p);
-   return i<0;
+   if (i<0) 
+      return TRUE;
+   else
+      return FALSE;
 }
 
 /* EXPORT->TouchV: mark use flag as seen */
@@ -989,4 +1140,4 @@ char *CopyString(MemHeap *x, char *s)
    return t;
 }
 
-/* -------------------------- End of HMem.c ---------------------------- */
+/* ------------------------ End of HMem.c -------------------------- */

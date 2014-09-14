@@ -32,8 +32,53 @@
 /*    File: HDMan:   pronunciation dictionary manager          */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hdman_version = "!HVER!HDMan:   3.4.1 [CUED 12/03/09]";
-char *hdman_vc_id = "$Id: HDMan.c,v 1.2 2006/12/07 11:09:08 mjfg Exp $";
+char *hdman_vc_id = "$Id: HDMan.c,v 1.12 2011/06/16 04:18:29 uratec Exp $";
 
 #include "HShell.h"
 #include "HMem.h"
@@ -206,6 +251,7 @@ void Summary(void)
 
 void ReportUsage(void)
 {
+   printf("\nModified for HTS\n");
    printf("\nUSAGE: HDMan [options] newDict srcDict1 srcDict2 ... \n\n");
    printf(" Option                                       Default\n\n");
    printf(" -a s    chars in s start comment lines       #\n");
@@ -222,7 +268,7 @@ void ReportUsage(void)
    printf(" -p f    load phone list stored in f\n");
    printf(" -t      tag output words with source         off\n");
    printf(" -w f    load word list stored in f\n");
-   PrintStdOpts("Q");
+   PrintStdOpts("QS");
    printf("\n\n");
 }
 
@@ -343,6 +389,13 @@ int main(int argc, char *argv[])
    EditAndMerge();
    if (isLogging)
       PrintLog();
+
+   ResetLabel();
+   ResetWave();
+   ResetMath();
+   ResetMem();
+   ResetShell();
+   
    Exit(0);
    return (0);          /* never reached -- make compiler happy */
 }
@@ -400,23 +453,23 @@ void PutPhone(LabId id)
    char buf[80];
    LabId baseId;
 
-   if (((int)id->aux == 0 || (int)id->aux == -1) && newPhones != NULL) {
+   if (((long)id->aux == 0 || (long)id->aux == -1) && newPhones != NULL) {
       fprintf(newPhones,"%s\n",ReWriteString(id->name,NULL,ESCAPE_CHAR));
       /* avoid printing it again */
-      id->aux = (Ptr)((int)id->aux - 2);
+      id->aux = (Ptr)((long)id->aux - 2);
    }
    strcpy(buf,id->name);
    TriStrip(buf);
    baseId=GetLabId(buf,TRUE);
-   if ((int)baseId->aux <= 0 ) {  /* not seen this label before */
-      if ((int)baseId->aux == 0 || (int)baseId->aux == -2){
+   if ((long)baseId->aux <= 0 ) {  /* not seen this label before */
+      if ((long)baseId->aux == 0 || (long)baseId->aux == -2){
          if (nNewPhones == MAXPVOC)
             HError(1430,"PutPhone: MAXPVOC exceeded");
          newList[nNewPhones++] = baseId;
       }
       baseId->aux = (Ptr)0;            
    }
-   baseId->aux = (Ptr)((int)baseId->aux + 1);
+   baseId->aux = (Ptr)((long)baseId->aux + 1);
 }
 
 /* ListNewPhones: list new phones to log file along with counts */
@@ -428,7 +481,7 @@ void ListNewPhones(void)
       fprintf(logF,"Def Phone Usage Counts\n");
       fprintf(logF,"---------------------\n");
       for (i=0; i<nDefPhones; i++) {
-         c = (int)defList[i]->aux;
+         c = (long)defList[i]->aux;
          if (c<0) c=0;
          fprintf(logF," %2d. %-5s : %5d\n",i+1,defList[i]->name,c);
       }
@@ -437,7 +490,7 @@ void ListNewPhones(void)
       fprintf(logF,"New Phone Usage Counts\n");
       fprintf(logF,"---------------------\n");
       for (i=0; i<nNewPhones; i++){
-         c = (int)newList[i]->aux;
+         c = (long)newList[i]->aux;
          if (c<0) c=0;
          fprintf(logF," %2d. %-5s : %5d\n",i+1, newList[i]->name,c);
       }
@@ -709,7 +762,7 @@ void SkipHeader(Source *src, int skipHeaderLines)
 void CreateBuffer(char *dName, Boolean isInput)
 {
    DBuffer *db;
-   char buf[256],scriptFN[256],*src;
+   char buf[MAXSTRLEN],scriptFN[MAXFNAMELEN],*src;
    Boolean ReadNextWord(DBuffer *db);
 
    if (isInput) {
@@ -786,7 +839,7 @@ void LoadWordList(void)
       ReadString(&src,buf);
       wList[i] = GetLabId(buf,TRUE);
       if (!mustSort && i>0)  /* check in sort order */
-         mustSort = strcmp(wList[i-1]->name,buf) > 0;
+         mustSort = (strcmp(wList[i-1]->name,buf) > 0) ? TRUE:FALSE;
       SkipLine(&src);
    }
    CloseSource(&src);
@@ -800,7 +853,7 @@ void LoadWordList(void)
 /* UCase: convert id to upper case and return new id */
 LabId UCase(LabId id)
 {
-   static char s[255];
+   static char s[MAXSTRLEN];
    int len,i;
 
    strcpy(s,id->name);
@@ -813,7 +866,7 @@ LabId UCase(LabId id)
 /* LCase: convert id to lower case and return new id */
 LabId LCase(LabId id)
 {
-   static char s[255];
+   static char s[MAXSTRLEN];
    int len,i;
 
    strcpy(s,id->name);
@@ -946,7 +999,7 @@ Boolean ReadNextWord(DBuffer *db)
 void WriteEntry(FILE *f, LabId word, LabId outsym, Pronunciation *p, int margin, Boolean findNew)
 {
    int i,st,en;
-   char buf[256],m[20];
+   char buf[MAXSTRLEN],m[20];
    
    if (p->nPhone == 0) return;
    if (!nullOutput) {
@@ -1122,7 +1175,7 @@ void DelDefOp(WordBuf *wb, LabId *args)
    Boolean found = FALSE;
    Pronunciation *p;
    LabId *ph;
-   char buf[256];
+   char buf[MAXSTRLEN];
 
    if (wb->word == *args){
       for (i=0; !found && i<wb->nPron; i++){
@@ -1158,7 +1211,7 @@ void DelDefOp(WordBuf *wb, LabId *args)
 void FunctionWordOp(WordBuf *wb, LabId *args)
 {
    int i,j;
-   static char s[255];
+   static char s[MAXSTRLEN];
    Pronunciation *p;
    
    if (IsInIdList(wb->word,args)) 
@@ -1227,12 +1280,12 @@ void ContextRep(Pronunciation *p, LabId *args, DBuffer *db)
          if (lcList != NULL)
             ltrue = IsInIdList(p->phone[i-1],lcList);
          else
-            ltrue = (lc == asterix || lc == p->phone[i-1] );
+            ltrue = (lc == asterix || lc == p->phone[i-1] ) ? TRUE:FALSE;
          if (ltrue){
             if (rcList != NULL)
                replace = IsInIdList(p->phone[i+1],rcList);
             else
-               replace = (rc == asterix || rc == p->phone[i+1] );
+               replace = (rc == asterix || rc == p->phone[i+1] ) ? TRUE:FALSE;
          }
       }
       if (replace) p->phone[i] = *args;
@@ -1389,7 +1442,7 @@ void AppendSilenceOp(WordBuf *wb, LabId *args)
 /* MakeTriId:  concatenate args separated by - and +'s and return its id */
 LabId MakeTriId(LabId l, LabId c, LabId r)
 {
-   char buf[100];
+   char buf[MAXSTRLEN];
    LabId item;
    
    if (l!=NULL && l!=wdBnd && c!=wdBnd){
@@ -1662,7 +1715,7 @@ Boolean ScanDict(DBuffer *db, LabId reqd)
    }
    if (scmp==0)
       ReadDictProns(db);
-   return scmp==0;
+   return ((scmp==0) ? TRUE:FALSE);
 }
 
 /* FillInputs: scan inputs until current word in each is >= required word.
@@ -1847,6 +1900,6 @@ void EditAndMerge(void)
    }
 }
 
-/* ---------------------------------------------------------------- */
+/* ----------------------------------------------------------- */
 /*                         END:  HDMan.c                            */
-/* ---------------------------------------------------------------- */
+/* ----------------------------------------------------------- */

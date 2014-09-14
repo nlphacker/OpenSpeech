@@ -19,8 +19,53 @@
 /*         File: HMath.c   Math Support Module                 */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hmath_version = "!HVER!HMath:   3.4.1 [CUED 12/03/09]";
-char *hmath_vc_id = "$Id: HMath.c,v 1.1.1.1 2006/10/11 09:54:58 jal58 Exp $";
+char *hmath_vc_id = "$Id: HMath.c,v 1.15 2011/06/16 04:18:29 uratec Exp $";
 
 /*
    This library provides math support in the following three areas
@@ -132,6 +177,19 @@ void CopyVector(Vector v1, Vector v2)
       v2[i] = v1[i];
 }
 
+/* EXPORT->CopyRVector: copy v1 into v2 */
+void CopyRVector(Vector v1, Vector v2, int n)
+{
+   int i,size; 
+   
+   size = VectorSize(v1);
+   if (n>size) 
+      n = size;
+      
+   for (i=1; i<=n; i++) 
+      v2[i] = v1[i];
+}
+
 /* EXPORT->CopyDVector: copy v1 into v2 */
 void CopyDVector(DVector v1, DVector v2)
 {
@@ -163,6 +221,12 @@ Boolean ReadVector(Source *src, Vector v, Boolean binary)
    return ReadFloat(src,v+1,VectorSize(v),binary);
 }
 
+/* EXPORT->ReadDVector: read double vector from src in ascii or binary */
+Boolean ReadDVector(Source *src, DVector v, Boolean binary)
+{
+   return ReadDouble(src,v+1,DVectorSize(v),binary);
+}
+
 /* EXPORT->WriteShortVec: write vector v to stream f */
 void WriteShortVec(FILE *f, ShortVec v, Boolean binary)
 {
@@ -181,6 +245,13 @@ void WriteIntVec(FILE *f, IntVec v, Boolean binary)
 void WriteVector(FILE *f, Vector v, Boolean binary)
 {
    WriteFloat(f,v+1,VectorSize(v),binary);
+   if (!binary) fputc('\n',f);
+}
+
+/* EXPORT->WriteDVector: write double vector v to stream f */
+void WriteDVector(FILE *f, DVector v, Boolean binary)
+{
+   WriteDouble(f,v+1,DVectorSize(v),binary);
    if (!binary) fputc('\n',f);
 }
 
@@ -258,6 +329,16 @@ void ZeroMatrix(Matrix m)
       for (j=1;j<=nc;j++) m[i][j]=0.0;
 }
 
+/* EXPORT->ZeroIMatrix: Zero the elements of m */
+void ZeroIMatrix(IMatrix m)
+{
+   int i,j,nr,nc;
+   
+   nr=NumIRows(m); nc=IntVecSize(m[1]);
+   for (i=1;i<=nr;i++)
+      for (j=1;j<=nc;j++) m[i][j]=0.0;
+}
+
 /* EXPORT->ZeroDMatrix: Zero the elements of m */
 void ZeroDMatrix(DMatrix m)
 {
@@ -278,6 +359,16 @@ void ZeroTriMat(TriMat m)
       for (j=1;j<=i;j++) m[i][j]=0.0;
 }
 
+/* EXPORT->ZeroDTriMat: Zero the elements of m */
+void ZeroDTriMat(DTriMat m)
+{
+   int i,j,size;
+   
+   size = DTriMatSize(m);
+   for (i=1;i<=size;i++)
+      for (j=1;j<=i;j++) m[i][j]=0.0;
+}
+
 /* EXPORT->CopyMatrix: copy matrix m1 to m2 */
 void CopyMatrix(Matrix m1, Matrix m2)
 {
@@ -289,6 +380,19 @@ void CopyMatrix(Matrix m1, Matrix m2)
              nrows,NumRows(m2));
    for (i=1; i<=nrows; i++)
       CopyVector(m1[i],m2[i]);
+}
+
+/* EXPORT->CopyIMatrix: copy integer matrix m1 to m2 */
+void CopyIMatrix(IMatrix m1, IMatrix m2)
+{
+   int i,nrows;
+   
+   nrows = NumIRows(m1);
+   if (nrows != NumIRows(m2))
+      HError(5270,"CopyIMatrix: row sizes differ %d vs %d",
+             nrows,NumIRows(m2));
+   for (i=1; i<=nrows; i++)
+      CopyIntVec(m1[i],m2[i]);
 }
 
 /* EXPORT->CopyDMatrix: copy matrix m1 to m2 */
@@ -315,6 +419,19 @@ void CopyTriMat(TriMat m1, TriMat m2)
              size,TriMatSize(m2));
    for (i=1; i<=size; i++)
       CopyVector(m1[i],m2[i]);
+}
+
+/* EXPORT->CopyDTriMat: copy double triangular matrix m1 to m2 */
+void CopyDTriMat(DTriMat m1, DTriMat m2)
+{
+   int i,size;
+   
+   size = DTriMatSize(m1);
+   if (size != DTriMatSize(m2))
+      HError(5270,"CopyDTriMat: sizes differ %d vs %d",
+             size,DTriMatSize(m2));
+   for (i=1; i<=size; i++)
+      CopyDVector(m1[i],m2[i]);
 }
 
 /* EXPORT->Mat2DMat: convert matrix m1 to double matrix m2 */
@@ -389,6 +506,42 @@ void Tri2Mat (TriMat m1, Matrix m2)
       }
 }
 
+/* EXPORT->DMat2DTri: convert double matrix m1 to double tri matrix m2 */
+void DMat2DTri (DMatrix m1, DTriMat m2)
+{
+   int i,j,nrows,ncols;
+
+   nrows = NumDRows(m1); ncols = NumDCols(m1);
+   if (nrows != ncols)
+      HError(5270,"DMat2DTri: source matrix not square %d vs %d",
+             nrows,ncols);   
+   if (ncols != DTriMatSize(m2))
+      HError(5270,"DMat2DTri: sizes differ %d vs %d",
+             ncols,DTriMatSize(m2));
+   for (i=1; i<=nrows; i++)
+      for (j=1; j<=i; j++) 
+         m2[i][j] = m1[i][j];
+}
+
+/* EXPORT->DTri2DMat: convert double tri matrix m1 to double matrix m2 */
+void DTri2DMat (DTriMat m1, DMatrix m2)
+{
+   int i,j,nrows,ncols;
+
+   nrows = NumDRows(m2); ncols = NumDCols(m2);
+   if (nrows != ncols)
+      HError(5270,"DTri2DMat: target matrix not square %d vs %d",
+             nrows,ncols);   
+   if (ncols != DTriMatSize(m1))
+      HError(5270,"DTri2DMat: sizes differ %d vs %d",
+             DTriMatSize(m1),ncols);
+   for (i=1; i<=nrows; i++)
+      for (j=1; j<=i; j++) {
+         m2[i][j] = m1[i][j];
+         if (i!=j) m2[j][i] = m1[i][j];
+      }
+}
+
 /* EXPORT->ReadMatrix: read matrix from source into m */
 Boolean ReadMatrix(Source *src, Matrix m, Boolean binary)
 {
@@ -397,6 +550,30 @@ Boolean ReadMatrix(Source *src, Matrix m, Boolean binary)
    nrows = NumRows(m);
    for (i=1; i<=nrows; i++)
       if (!ReadVector(src,m[i],binary)) 
+         return FALSE;
+   return TRUE;
+}
+
+/* EXPORT->ReadIMatrix: read integer matrix from source into m */
+Boolean ReadIMatrix(Source *src, IMatrix m, Boolean binary)
+{
+   int i,nrows;
+   
+   nrows = NumIRows(m);
+   for (i=1; i<=nrows; i++)
+      if (!ReadIntVec(src,m[i],binary)) 
+         return FALSE;
+   return TRUE;
+}
+
+/* EXPORT->ReadDMatrix: read double matrix from source into m */
+Boolean ReadDMatrix(Source *src, DMatrix m, Boolean binary)
+{
+   int i,nrows;
+   
+   nrows = NumDRows(m);
+   for (i=1; i<=nrows; i++)
+      if (!ReadDVector(src,m[i],binary)) 
          return FALSE;
    return TRUE;
 }
@@ -416,6 +593,21 @@ Boolean ReadTriMat(Source *src, TriMat m, Boolean binary)
    return TRUE;
 }
 
+/* EXPORT->ReadDTriMat: read symmetric double matrix in lower triangular
+                        form from source into m */
+Boolean ReadDTriMat(Source *src, DTriMat m, Boolean binary)
+{
+   int i,j,size;
+   
+   size = DTriMatSize(m);
+   for (j=1; j<=size; j++) {
+      for (i=j; i<=size; i++)
+         if (!ReadDouble(src,&(m[i][j]),1,binary))
+            return FALSE;
+   }
+   return TRUE;
+}
+
 /* EXPORT->WriteMatrix: write matrix to f */
 void WriteMatrix(FILE *f, Matrix m, Boolean binary)
 {
@@ -424,6 +616,26 @@ void WriteMatrix(FILE *f, Matrix m, Boolean binary)
    nrows = NumRows(m);
    for (i=1; i<=nrows; i++)
       WriteVector(f,m[i],binary);
+}
+
+/* EXPORT->WriteIMatrix: write integer matrix to f */
+void WriteIMatrix(FILE *f, IMatrix m, Boolean binary)
+{
+   int i,nrows;
+   
+   nrows = NumIRows(m);
+   for (i=1; i<=nrows; i++)
+      WriteIntVec(f,m[i],binary);
+}
+
+/* EXPORT->WriteDMatrix: write double matrix to f */
+void WriteDMatrix(FILE *f, DMatrix m, Boolean binary)
+{
+   int i,nrows;
+   
+   nrows = NumDRows(m);
+   for (i=1; i<=nrows; i++)
+      WriteDVector(f,m[i],binary);
 }
 
 /* EXPORT->WriteTriMat: write symmetric matrix to stream f in
@@ -436,6 +648,20 @@ void WriteTriMat(FILE *f, TriMat m, Boolean binary)
    for (j=1; j<=size; j++) {
       for (i=j; i<=size; i++)
          WriteFloat(f,&(m[i][j]),1,binary);
+      if (!binary) fputc('\n',f);
+   }
+}
+
+/* EXPORT->WriteDTriMat: write symmetric double matrix to stream f in
+                         upper triangular form */
+void WriteDTriMat(FILE *f, DTriMat m, Boolean binary)
+{
+   int i,j,size;
+   
+   size = DTriMatSize(m);
+   for (j=1; j<=size; j++) {
+      for (i=j; i<=size; i++)
+         WriteDouble(f,&(m[i][j]),1,binary);
       if (!binary) fputc('\n',f);
    }
 }
@@ -455,6 +681,28 @@ void ShowMatrix(char * title,Matrix m,int maxCols,int maxRows)
       printf("   ");
       for (j=1;j<=maxj;j++)
          printf("%8.2f ",m[i][j]);
+      if (maxj<ncols) printf("...");
+      printf("\n");
+   }
+   if (maxi<nrows)
+      printf("   ...\n");
+}
+
+/* Export->ShowIMatrix: show the matrix m preceded by title */
+void ShowIMatrix(char * title, IMatrix m, int maxCols, int maxRows)
+{
+   int i,j;
+   int maxi,maxj,nrows,ncols;
+   
+   maxi = nrows = NumIRows(m);
+   if (maxi>maxRows) maxi = maxRows;
+   maxj = ncols = IntVecSize(m[1]);
+   if (maxj>maxCols) maxj = maxCols;
+   printf("%s\n",title);
+   for (i=1;i<=maxi;i++) {
+      printf("   ");
+      for (j=1;j<=maxj;j++)
+         printf("%5d ",m[i][j]);
       if (maxj<ncols) printf("...");
       printf("\n");
    }
@@ -507,7 +755,57 @@ void ShowTriMat(char * title,TriMat m,int maxCols,int maxRows)
       printf("   ...\n");
 }
 
+/* Export->ShowDTriMat: show the matrix m preceded by title */
+void ShowDTriMat(char * title,DTriMat m,int maxCols,int maxRows)
+{
+   int i,j;
+   int maxi,maxj,size;
+   
+   size = DTriMatSize(m);
+   maxi = size;
+   if (maxi>maxRows) maxi = maxRows;
+   printf("%s\n",title);
+   for (i=1;i<=maxi;i++) {
+      printf("   ");
+      maxj = i;
+      if (maxj>maxCols) maxj = maxCols;
+      for (j=1;j<=maxj;j++)
+         printf("%10.4f ",m[i][j]);
+      if (maxj<i) printf("...");
+      printf("\n");
+   }
+   if (maxi<size)
+      printf("   ...\n");
+}
+
 /* -------------------- Matrix Operations ---------------------- */
+
+/* EXPORT->MatrixMult: Product between two given matrices */
+void MatrixMult(Matrix m1, Matrix m2, Matrix m)
+{
+   double tempElem;
+   int i,j,k;
+   Matrix mat;
+
+   mat = CreateMatrix(&gstack,NumRows(m1),NumCols(m2));
+   if (NumCols(m1)==NumRows(m2)) {
+      for (i=1;i<=NumRows(m);i++) {
+         for (j=1;j<=NumCols(m);j++) {
+            tempElem=0.0;
+            for (k=1;k<=NumCols(m1);k++) {
+               if (m1[i][k]!=0.0 && m2[k][j]!=0.0)
+                  tempElem+=m1[i][k]*m2[k][j];
+            }
+            mat[i][j]=tempElem;
+         }
+      }
+      CopyMatrix(mat,m);
+   }
+   else {
+      HError(999,"MatrixMult: Matrices are not the same size!\n");
+   }
+   FreeMatrix(&gstack,mat);
+}
 
 /* Choleski: Place lower triangular choleski factor of A in L.*/
 /*           Return FALSE if matrix singular or not +definite */
@@ -517,6 +815,35 @@ static Boolean Choleski(TriMat A, DMatrix L)
    double sum;
 
    size = TriMatSize(A);
+   for (i=1; i<=size; i++)
+      for (j=1; j<=i; j++) {
+         sum=A[i][j];
+         for (k=1; k<j; k++)
+            sum -= (L[i][k]*L[j][k]);
+         if ((i==j)&&(sum<=0.0)) 
+            return FALSE;
+         else if (i==j)
+            sum = sqrt(sum);
+         else if (L[j][j]==0.0)
+            return FALSE;
+         else
+            sum /= L[j][j];
+         L[i][j] = sum;
+      }
+   for (i=1; i<=size; i++) 
+      for (j=i+1; j<=size; j++) 
+         L[i][j] = 0.0;
+   return TRUE;
+}
+
+/* DCholeski: Place lower triangular choleski factor of A in L.*/
+/*            Return FALSE if matrix singular or not +definite */
+static Boolean DCholeski(DTriMat A, DMatrix L)
+{
+   int size,i,j,k;
+   double sum;
+
+   size = DTriMatSize(A);
    for (i=1; i<=size; i++)
       for (j=1; j<=i; j++) {
          sum=A[i][j];
@@ -568,7 +895,7 @@ LogFloat CovInvert(TriMat c, Matrix invc)
 {
    DMatrix l;     /* Lower Tri Choleski Matrix */
    DVector x,y;   /* for f/b substitution */
-   LogFloat ldet = 0.0;
+   LogDouble ldet = 0.0;
    int i,j,n;
    Boolean isTri;
    
@@ -586,6 +913,33 @@ LogFloat CovInvert(TriMat c, Matrix invc)
    } else
       HError(5220,"CovInvert: [%f ...] not invertible",c[1][1]);
    FreeDMatrix(&gstack,l);    /* cut back stack to entry state */
+   return ((LogFloat)2.0*ldet);
+}
+
+/* EXPORT->DCovInvert: puts inverse of c in invc, returns log(Det(c)) */
+/*          Note that c must be positive definite */
+LogDouble DCovInvert(DTriMat c, DMatrix invc)
+{
+   DMatrix l;     /* Lower Tri Choleski Matrix */
+   DVector x,y;   /* for f/b substitution */
+   LogDouble ldet = 0.0;
+   int i,j,n;
+   Boolean isTri;
+   
+   n = DTriMatSize(c); isTri = IsDTriMat(invc);
+   l = CreateDMatrix(&gstack,n,n);
+   x = CreateDVector(&gstack,n);
+   y = CreateDVector(&gstack,n);
+   if (DCholeski(c,l)){
+      for (j=1; j<=n; j++){
+         MSolve(l,j,x,y);
+         for (i=isTri?j:1; i<=n; i++)
+            invc[i][j] = x[i];
+         ldet += log(l[j][j]);
+      }
+   } else
+      HError(5220,"DCovInvert: [%f ...] not invertible",c[1][1]);
+   FreeDMatrix(&gstack,l);    /* cut back stack to entry state */
    return 2.0*ldet;
 }
 
@@ -593,7 +947,7 @@ LogFloat CovInvert(TriMat c, Matrix invc)
 LogFloat CovDet(TriMat c)
 {
    DMatrix l;  /* Lower Tri Choleski Matrix */
-   LogFloat ldet = 0.0;
+   LogDouble ldet = 0.0;
    int j,n;
    
    n = TriMatSize(c);
@@ -603,6 +957,24 @@ LogFloat CovDet(TriMat c)
          ldet += log(l[j][j]);
    } else
       HError(5220,"CovDet: [%f ...] not invertible",c[1][1]);
+   FreeDMatrix(&gstack,l);
+   return((LogFloat)2.0*ldet);
+}
+
+/* EXPORT->DCovDet: Returns log(Det(c)), c must be positive definite */
+LogDouble DCovDet(DTriMat c)
+{
+   DMatrix l;  /* Lower Tri Choleski Matrix */
+   LogDouble ldet = 0.0;
+   int j,n;
+   
+   n = DTriMatSize(c);
+   l = CreateDMatrix(&gstack,n,n);
+   if (DCholeski(c,l)){
+      for (j=1; j<=n; j++)
+         ldet += log(l[j][j]);
+   } else
+      HError(5220,"DCovDet: [%f ...] not invertible",c[1][1]);
    FreeDMatrix(&gstack,l);
    return 2.0*ldet;
 }
@@ -684,6 +1056,7 @@ void LinTranQuaProd(Matrix Prod, Matrix A, Matrix C)
 #define sgn(x)  ((x) >= 0 ? 1 : -1)
 #define minab(a,b) ((a) > (b) ? (b) : (a))
 #define MAX_STACK       100
+#define MAX_VSIZE       256
 
 /* Givens -- returns c,s parameters for Givens rotation to
    eliminate y in the vector [ x y ]' */
@@ -1303,7 +1676,7 @@ float MatDet(Matrix c)
    a=CreateMatrix(&gstack,n,n);
    CopyMatrix(c,a);                /* Make a copy of c */
    LUDecompose(a,perm,&sign);      /* Do LU Decomposition */
-   det = sign;                     /* Calc Det(c) */
+   det = (float)sign;              /* Calc Det(c) */
    for (i=1; i<=n; i++) {
       det *= a[i][i];
    }
@@ -1331,7 +1704,7 @@ static Boolean DLUDecompose(DMatrix a, int *perm, int *sign)
          if ((xx = fabs(a[i][j])) > scale )
             scale = xx;
       if (scale == 0.0) {
-         HError(-1,"LUDecompose: Matrix is Singular");
+         HError(-1,"DLUDecompose: Matrix is Singular");
          return(FALSE);
       }
       vv[i] = 1.0/scale;
@@ -1358,7 +1731,7 @@ static Boolean DLUDecompose(DMatrix a, int *perm, int *sign)
       }
       perm[j]=imax;
       if (a[j][j] == 0.0) {
-         HError(-1,"LUDecompose: Matrix is Singular");
+         HError(-1,"DLUDecompose: Matrix is Singular");
          return(FALSE);
       }
       if (j != n) {
@@ -1382,7 +1755,7 @@ double DMatDet(DMatrix c)
    a=CreateDMatrix(&gstack,n,n);
    CopyDMatrix(c,a);                /* Make a copy of c */
    DLUDecompose(a,perm,&sign);      /* Do LU Decomposition */
-   det = sign;                     /* Calc Det(c) */
+   det = (double)sign;              /* Calc Det(c) */
    for (i=1; i<=n; i++) {
       det *= a[i][i];
    }
@@ -1405,7 +1778,7 @@ static void LinSolve(Matrix a, int *perm, float *b)
       if (ii)
          for (j=ii;j<=i-1;j++) sum -=a[i][j]*b[j];
       else
-         if (sum) ii=i;
+         if (sum!=0.0) ii=i;
       b[i]=sum;
    }
    for (i=n; i>=1; i--) {
@@ -1421,10 +1794,10 @@ static void LinSolve(Matrix a, int *perm, float *b)
 float MatInvert(Matrix c, Matrix invc)
 {
    Matrix a;
-   float col[100];
+   float col[MAX_VSIZE];
    float det;
    int sign;
-   int n,i,j,perm[100];
+   int n,i,j,perm[MAX_VSIZE];
    
    n=NumRows(c);
    a=CreateMatrix(&gstack,n,n);
@@ -1438,7 +1811,7 @@ float MatInvert(Matrix c, Matrix invc)
       for (i=1; i<=n; i++)
          invc[i][j] = col[i];
    }  
-   det = sign;                /* Calc log(det(c)) */
+   det = (float)sign;         /* Calc log(det(c)) */
    for (i=1; i<=n; i++) {
       det *= a[i][i];
    }
@@ -1474,10 +1847,10 @@ static void DLinSolve(DMatrix a, int *perm, double *b)
 double DMatInvert(DMatrix c, DMatrix invc)
 {
    DMatrix a;
-   double col[100];
+   double col[MAX_VSIZE];
    double det;
    int sign;
-   int n,i,j,perm[100];
+   int n,i,j,perm[MAX_VSIZE];
    
    n=NumDRows(c);
    a=CreateDMatrix(&gstack,n,n);
@@ -1491,7 +1864,7 @@ double DMatInvert(DMatrix c, DMatrix invc)
       for (i=1; i<=n; i++)
          invc[i][j] = col[i];
    }  
-   det = sign;                /* Calc log(det(c)) */
+   det = (double)sign;                /* Calc log(det(c)) */
    for (i=1; i<=n; i++) {
       det *= a[i][i];
    }
@@ -1503,17 +1876,17 @@ double DMatInvert(DMatrix c, DMatrix invc)
 double DMatCofact(DMatrix c, int r, DVector cofact)
 {
    DMatrix a;
-   double col[100];
+   double col[MAX_VSIZE];
    double det;
    int sign;
-   int n,i,perm[100];
+   int n,i,perm[MAX_VSIZE];
    
    n=NumDRows(c);
    a=CreateDMatrix(&gstack,n,n);
    CopyDMatrix(c,a);                      /* Make a copy of c */
    if (! DLUDecompose(a,perm,&sign))      /* Do LU Decomposition */
      return 0;
-   det = sign;                         /* Calc det(c) */
+   det = (double)sign;                    /* Calc det(c) */
    for (i=1; i<=n; i++) {
       det *= a[i][i];
    }
@@ -1532,10 +1905,10 @@ double MatCofact(Matrix c, int r, Vector cofact)
 {
    DMatrix a;
    DMatrix b;
-   double col[100];
+   double col[MAX_VSIZE];
    float det;
    int sign;
-   int n,i,perm[100];
+   int n,i,perm[MAX_VSIZE];
  
    n=NumRows(c);
    a=CreateDMatrix(&gstack,n,n);
@@ -1544,7 +1917,7 @@ double MatCofact(Matrix c, int r, Vector cofact)
    CopyDMatrix(b,a);                      /* Make a copy of c */
    if (! DLUDecompose(a,perm,&sign))      /* Do LU Decomposition */
      return 0;
-   det = sign;                         /* Calc det(c) */
+   det = (double)sign;                    /* Calc det(c) */
    for (i=1; i<=n; i++) {
       det *= a[i][i];
    }
@@ -1636,7 +2009,7 @@ void RandInit(int seed)
    SRAND(seed);
 }
 
-/* EXPORT->RandomValue:  */
+/* EXPORT->RandomValue: Return a random number in range 0.0->1.0 with uniform distribution */
 float RandomValue(void)
 {
    return RANDF();
@@ -1668,6 +2041,25 @@ float GaussDeviate(float mu, float sigma)
    return x*sigma+mu;
 }
 
+/* EXPORT->MultiNomial: return a random number in range 1->N with multinomial distribution */
+int MultiNomial(Vector prob, const int N)
+{
+   int i;
+   float p,sum=0.0;
+   
+   if (N==1) return 1;
+
+   for (i=1; i<=N; i++) sum += prob[i];
+
+   p = sum * RandomValue();  sum = 0.0;
+   for (i=1; i<=N; sum+=prob[i++]) {
+      if (sum<p && p<=sum+prob[i])
+         return i;
+   }
+   
+   return N;
+}
+
 /* --------------------- Initialisation ---------------------- */
 
 /* EXPORT->InitMath: initialise this module */
@@ -1684,4 +2076,10 @@ void InitMath(void)
    }
 }
 
-/* ------------------------- End of HMath.c ------------------------- */
+/* EXPORT->ResetMath: reset this module */
+void ResetMath(void)
+{
+   return;  /* do nothing */
+}
+
+/* ------------------------ End of HMath.c ------------------------- */

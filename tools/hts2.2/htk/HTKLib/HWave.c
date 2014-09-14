@@ -32,8 +32,53 @@
 /*         File: HWave.c:   Speech Wave File Input/Output      */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 char *hwave_version = "!HVER!HWave:   3.4.1 [CUED 12/03/09]";
-char *hwave_vc_id = "$Id: HWave.c,v 1.1.1.1 2006/10/11 09:54:59 jal58 Exp $";
+char *hwave_vc_id = "$Id: HWave.c,v 1.11 2011/06/16 04:18:29 uratec Exp $";
 
 #include "HShell.h"
 #include "HMem.h"
@@ -145,6 +190,12 @@ void InitWave(void)
    }
 }
 
+/* EXPORT->RestWave: reset module */
+void ResetWave(void)
+{
+   return;  /* do nothing */
+}
+
 /* --------------- Wave Record Memory Management ---------------- */
 
 /* CreateWave: create a wave object with given parameters */
@@ -197,10 +248,13 @@ static Boolean MustSwap(SrcOrder so)
    char bos[MAXSTRLEN];
    
    if (GetConfStr(cParm,numParm,"BYTEORDER",bos)) { /* force required order */
-      return (strcmp(bos,"VAX") == 0) ? !vaxOrder : vaxOrder;
+      if (strcmp(bos,"VAX")==0)
+         return((vaxOrder) ? FALSE : TRUE);
+      else
+         return(vaxOrder);
    } else
       switch(so) {
-      case VAXSO:     return !vaxOrder;
+      case VAXSO:     return ((vaxOrder) ? FALSE : TRUE);
       case SUNSO:     return vaxOrder;
       case UNKNOWNSO: return FALSE;
       }
@@ -579,7 +633,7 @@ static void NISTSkipLine(FILE *f)
 /* GetNISTIVal: get int val from f (indicated by -i) */
 static int GetNISTIVal(FILE *f)
 {
-   char buf[100];
+   char buf[MAXSTRLEN];
    
    if (strcmp(GetNISTToken(f,buf),"-i") != 0)
       HError(6251,"GetNISTIVal: NIST type indicator -i expected");
@@ -589,7 +643,7 @@ static int GetNISTIVal(FILE *f)
 /* GetNISTSVal: get string of lenth n into s (indicated by -sn) */
 static void GetNISTSVal(FILE *f, char *s)
 {
-   char buf[100];
+   char buf[MAXSTRLEN];
 
    GetNISTToken(f,buf);
    if (buf[0] != '-' || buf[1] != 's')
@@ -602,7 +656,7 @@ static void GetNISTSVal(FILE *f, char *s)
 /* GetNISTHeaderInfo: get the NIST Header info */
 static long GetNISTHeaderInfo(FILE *f, Wave w, InputAction *ia)
 {
-   char token[100],*lab,byteFormat[100],sampCoding[100],buf[100];
+   char token[MAXSTRLEN],*lab,byteFormat[MAXSTRLEN],sampCoding[MAXSTRLEN],buf[MAXSTRLEN];
    Boolean interleaved = FALSE;
    long nS,sR,sS, cC;
    long dataBytes;
@@ -736,7 +790,7 @@ static int GetShortPackBlock(char **inData, short **outData)
          buf = *(in++);
          numChar++;
       }
-      negative = buf & bitValue[7-charBits];
+      negative = (buf & bitValue[7-charBits]) ? TRUE : FALSE;
       charBits = (charBits+1)%8;
       k = nBits;
       while (k > 0) {
@@ -1003,6 +1057,8 @@ static long GetAIFFHeaderInfo(FILE *f, Wave w, InputAction *ia)
    const long ccid = 0x434f4d4d;  /* 'COMM' */
    const long scid = 0x53534e44;  /* 'SSND' */
    
+   commchunk2.nSamples = 0;  /* to avoid gcc4 warning */
+
    if (w->isPipe){
       HRError(6201,"GetAIFFHeaderInfo: cannot pipe an AIFF file");
       return -1;
@@ -1795,4 +1851,4 @@ ReturnStatus CloseWaveOutput(Wave w, FileFormat fmt, char *fname)
    return(SUCCESS);
 }
 
-/* --------------------------------  HWave.c ------------------------------- */
+/* ------------------------ End of HWave.c ------------------------- */

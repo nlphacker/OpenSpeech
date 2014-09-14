@@ -19,6 +19,51 @@
 /*         File: HUtil.h      HMM utility routines             */
 /* ----------------------------------------------------------- */
 
+/*  *** THIS IS A MODIFIED VERSION OF HTK ***                        */
+/* ----------------------------------------------------------------- */
+/*           The HMM-Based Speech Synthesis System (HTS)             */
+/*           developed by HTS Working Group                          */
+/*           http://hts.sp.nitech.ac.jp/                             */
+/* ----------------------------------------------------------------- */
+/*                                                                   */
+/*  Copyright (c) 2001-2011  Nagoya Institute of Technology          */
+/*                           Department of Computer Science          */
+/*                                                                   */
+/*                2001-2008  Tokyo Institute of Technology           */
+/*                           Interdisciplinary Graduate School of    */
+/*                           Science and Engineering                 */
+/*                                                                   */
+/* All rights reserved.                                              */
+/*                                                                   */
+/* Redistribution and use in source and binary forms, with or        */
+/* without modification, are permitted provided that the following   */
+/* conditions are met:                                               */
+/*                                                                   */
+/* - Redistributions of source code must retain the above copyright  */
+/*   notice, this list of conditions and the following disclaimer.   */
+/* - Redistributions in binary form must reproduce the above         */
+/*   copyright notice, this list of conditions and the following     */
+/*   disclaimer in the documentation and/or other materials provided */
+/*   with the distribution.                                          */
+/* - Neither the name of the HTS working group nor the names of its  */
+/*   contributors may be used to endorse or promote products derived */
+/*   from this software without specific prior written permission.   */
+/*                                                                   */
+/* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND            */
+/* CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,       */
+/* INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF          */
+/* MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE          */
+/* DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS */
+/* BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,          */
+/* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED   */
+/* TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,     */
+/* DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON */
+/* ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,   */
+/* OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY    */
+/* OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE           */
+/* POSSIBILITY OF SUCH DAMAGE.                                       */
+/* ----------------------------------------------------------------- */
+
 /* !HVER!HUtil:   3.4.1 [CUED 12/03/09] */
 
 #ifndef _HUTIL_H_
@@ -41,6 +86,7 @@ typedef struct{   /* HMMSet Scan State */
    int S;            /* num Streams = hset->swidth[0] */
    int s;            /* current stream index 1..S */
    StreamElem *ste;  /* ->current streamElem */
+   StreamInfo *sti;  /* ->current streamInfo */
    int M;            /* num mixtures */
    int m;            /* current mixture index 1..M */
    /* ------ continuous case only ------------ */
@@ -54,8 +100,13 @@ void InitUtil(void);
    Initialise the module
 */
 
+void ResetUtil (void);
+/*
+   Reset the module
+*/
+
 /* EXPORT->ResetUtilItemList: frees all the memory from the ItelList heap */
-void ResetUtilItemList();
+void ResetUtilItemList(void);
 
 /* EXPORT->SetParsePhysicalHMM: only parse physical HMMs */
 void SetParsePhysicalHMM(Boolean parse);
@@ -67,7 +118,7 @@ SMatrix CloneSMatrix(MemHeap *hmem, SMatrix s, Boolean sharing);
 STriMat CloneSTriMat(MemHeap *hmem, STriMat s, Boolean sharing);
 
 MixPDF *CloneMixPDF(HMMSet *hset, MixPDF *s, Boolean sharing);
-MixtureVector CloneStream(HMMSet *hset, StreamElem *ste, Boolean sharing);
+StreamInfo *ClonePDF(HMMSet *hset, int s, StreamInfo *sti, Boolean sharing);
 StateInfo *CloneState(HMMSet *hset, StateInfo *ssi, Boolean sharing);
 
 void CloneHMM(HLink src, HLink tgt, Boolean sharing);
@@ -162,6 +213,12 @@ char *HMMPhysName(HMMSet *hset,HLink hmm);
    Aborts if model does not exist.
 */
 
+char *HMMPhysNameFromStreamInfo(HMMSet *hset, StreamInfo *sti, int *state, int *stream);
+/*
+   Return name, state index, and stream index of given StreamInfo from HMMSet.
+   Return NULL if it does not exist.
+*/
+
 /* --------------------- Item List Handling -------------------- */
 
 /* 
@@ -203,6 +260,8 @@ Boolean IsMember(IntSet s, int x);
 Boolean IsFullSet(IntSet s);
 void ClearSet(IntSet s);
 void SetSet(IntSet s);
+void DupSet(IntSet oldSet, IntSet *newSet);
+void CopySet(IntSet oldSet, IntSet newSet);
 
 /*
    Functions to set and clear IntSet members flags
@@ -239,8 +298,8 @@ void SetSet(IntSet s);
    
 */
 
-char *PItemList(ILink *ilist, char *type, HMMSet *h,
-		Source *s, Boolean itrace);
+char *PItemList(ILink *ilist, char *type, HMMSet *h, Source *s, IntSet *streams, 
+                const int maxM, const int maxS, const Boolean itrace);
 
 /* 
    Parse source s and convert into itemlist ilist and type holding
@@ -272,10 +331,21 @@ void LoadStatsFile(char *statfile,HMMSet *hset,Boolean otrace);
    Load the statistics file output by HERest into state hooks
 */
 
+/* ------------------- Configuration File Parsing  --------------------- */
+
+/*
+   Functions to provide arbitrary vector parsers for configuration file
+*/
+
+IntVec ParseConfIntVec(MemHeap *x, char *inbuf, Boolean residual);
+Vector ParseConfVector(MemHeap *x, char *inbuf, Boolean residual);
+char **ParseConfStrVec(MemHeap *x, char *inbuf, Boolean residual);
+Boolean *ParseConfBoolVec(MemHeap *x, char *inbuf, Boolean residual);
+
 #ifdef __cplusplus
 }
 #endif
 
 #endif  /* _HUTIL_H_ */
 
-/* ------------------------- End of HUtil.h --------------------------- */
+/* ------------------------ End of HUtil.h ------------------------- */
